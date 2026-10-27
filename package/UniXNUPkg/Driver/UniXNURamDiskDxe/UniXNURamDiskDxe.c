@@ -19,6 +19,17 @@ STATIC CONST EFI_GUID mEntryArgHobGuid = {
   0xDAEE82E6, 0x8090, 0x4E72, { 0xBF, 0xB9, 0x78, 0xC1, 0x3C, 0xD4, 0xE3, 0x59 }
 };
 
+// Optional BootShim transport for Android bootloaders that expose vendor_boot's
+// ramdisk in the FDT instead of the generic ramdisk supplied to fastboot boot.
+STATIC CONST EFI_GUID mEmbeddedPayloadHobGuid = {
+  0xA8E7F3A4, 0xE28B, 0x4E66, { 0xA4, 0x6E, 0x99, 0x72, 0x78, 0x65, 0x72, 0x31 }
+};
+
+typedef struct {
+  UINT64  Base;
+  UINT64  Size;
+} EMBEDDED_PAYLOAD;
+
 STATIC
 UINT64
 ReadCells (
@@ -34,6 +45,54 @@ ReadCells (
 }
 
 #define RAM_BLOCK_SIZE  512
+
+STATIC
+BOOLEAN
+Fat32PayloadSize (
+  IN  CONST UINT8  *BootSector,
+  IN  UINT64       Available,
+  OUT UINT64       *PayloadSize
+  )
+{
+  UINT16  BytesPerSector;
+  UINT8   SectorsPerCluster;
+  UINT16  ReservedSectors;
+  UINT8   FatCount;
+  UINT32  FatSectors;
+  UINT32  TotalSectors;
+  UINT64  Size;
+
+  if ((Available < RAM_BLOCK_SIZE) ||
+      (BootSector[510] != 0x55) || (BootSector[511] != 0xAA) ||
+      (CompareMem (BootSector + 82, "FAT32   ", 8) != 0))
+  {
+    return FALSE;
+  }
+
+  BytesPerSector    = ReadUnaligned16 ((CONST UINT16 *)(BootSector + 11));
+  SectorsPerCluster = BootSector[13];
+  ReservedSectors   = ReadUnaligned16 ((CONST UINT16 *)(BootSector + 14));
+  FatCount          = BootSector[16];
+  TotalSectors      = ReadUnaligned32 ((CONST UINT32 *)(BootSector + 32));
+  FatSectors        = ReadUnaligned32 ((CONST UINT32 *)(BootSector + 36));
+
+  if ((BytesPerSector != RAM_BLOCK_SIZE) ||
+      (SectorsPerCluster == 0) || ((SectorsPerCluster & (SectorsPerCluster - 1)) != 0) ||
+      (ReservedSectors == 0) || ((FatCount != 1) && (FatCount != 2)) ||
+      (TotalSectors == 0) || (FatSectors == 0) ||
+      ((UINT64)ReservedSectors + (UINT64)FatCount * FatSectors >= TotalSectors))
+  {
+    return FALSE;
+  }
+
+  Size = (UINT64)TotalSectors * BytesPerSector;
+  if ((Size != Available) || ((Size % RAM_BLOCK_SIZE) != 0)) {
+    return FALSE;
+  }
+
+  *PayloadSize = Size;
+  return TRUE;
+}
 
 #pragma pack(1)
 typedef struct {
@@ -197,7 +256,43 @@ UniXNURamDiskDxeEntry (
   )
 {
   EFI_HOB_GUID_TYPE  *Hob;
+  EMBEDDED_PAYLOAD   *EmbeddedPayload;
   UINT64             Dtb;
+
+  Hob = GetFirstGuidHob (&mEmbeddedPayloadHobGuid);
+  if ((Hob != NULL) && (GET_GUID_HOB_DATA_SIZE (Hob) >= sizeof (EMBEDDED_PAYLOAD))) {
+    EmbeddedPayload = (EMBEDDED_PAYLOAD *)GET_GUID_HOB_DATA (Hob);
+    if ((EmbeddedPayload->Size == 0) ||
+        !Fat32PayloadSize (
+           (CONST UINT8 *)(UINTN)EmbeddedPayload->Base,
+           EmbeddedPayload->Size,
+           &Dtb
+           ))
+    {
+      DEBUG ((DEBUG_ERROR, "UNIXNURAMDISK: embedded payload is not a valid FAT32 volume\n"));
+      return EFI_COMPROMISED_DATA;
+    }
+
+    mRamBase                = (UINT8 *)(UINTN)EmbeddedPayload->Base;
+    mMedia.MediaId          = 1;
+    mMedia.RemovableMedia   = FALSE;
+    mMedia.MediaPresent     = TRUE;
+    mMedia.LogicalPartition = FALSE;
+    mMedia.ReadOnly         = TRUE;
+    mMedia.WriteCaching     = FALSE;
+    mMedia.BlockSize        = RAM_BLOCK_SIZE;
+    mMedia.IoAlign          = 1;
+    mMedia.LastBlock        = EmbeddedPayload->Size / RAM_BLOCK_SIZE - 1;
+    ImageHandle = NULL;
+    return gBS->InstallMultipleProtocolInterfaces (
+                  &ImageHandle,
+                  &gEfiDevicePathProtocolGuid,
+                  &mDevicePath,
+                  &gEfiBlockIoProtocolGuid,
+                  &mBlockIo,
+                  NULL
+                  );
+  }
 
   Hob = GetFirstGuidHob (&mEntryArgHobGuid);
   if (Hob == NULL) {
