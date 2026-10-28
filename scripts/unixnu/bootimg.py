@@ -17,7 +17,7 @@ from .config import load_toml
 from .util import Error, log, run, sha256_file, tool
 
 DEFAULTS = {'header_version': 0, 'base': 0, 'kernel_offset': 0x8000, 'tags_offset': 0x1e00000, 'pagesize': 4096}
-MKBOOTIMG_FLAGS = ('base', 'kernel_offset', 'tags_offset', 'pagesize', 'header_version', 'ramdisk_offset', 'second_offset', 'cmdline')
+MKBOOTIMG_FLAGS = ('base', 'kernel_offset', 'tags_offset', 'pagesize', 'header_version', 'ramdisk_offset', 'second_offset', 'cmdline', 'os_version', 'os_patch_level')
 
 
 def compile_shim(uefi, base, size, embedded_payload_size, requires_header, scratch):
@@ -126,11 +126,25 @@ def build(ctx, uefi, fd, dtb, ramdisk=None, output=None):
 def verify(path, combined, tree, ramdisk_path, image):
     """Unpack the image and compare every part with its input."""
     data = Path(path).read_bytes()
-    kernel_size, kernel_address, ramdisk_size, _, second_size, _, tags, page, version, _ = struct.unpack_from('<10I', data, 8)
-    if data[:8] != b'ANDROID!' or second_size or version != image['header_version'] or page != image['pagesize']:
-        raise Error('boot image header does not match the requested parameters')
-    if kernel_address != image['base'] + image['kernel_offset'] or tags != image['base'] + image['tags_offset']:
-        raise Error('boot image load addresses do not match the requested offsets')
+    if data[:8] != b'ANDROID!':
+        raise Error('boot image header magic is invalid')
+
+    version = image.get('header_version', 0)
+    if version >= 3:
+        kernel_size, ramdisk_size, _, boot_header_size = struct.unpack_from('<4I', data, 8)
+        hdr_ver = struct.unpack_from('<I', data, 40)[0]
+        page = image.get('pagesize', 4096)
+        if hdr_ver != version:
+            raise Error(f'boot image header version {hdr_ver} != expected {version}')
+        kernel_address = image.get('base', 0) + image.get('kernel_offset', 0x8000)
+        tags = image.get('base', 0) + image.get('tags_offset', 0x1e00000)
+    else:
+        kernel_size, kernel_address, ramdisk_size, _, second_size, _, tags, page, version_read, _ = struct.unpack_from('<10I', data, 8)
+        if second_size or version_read != version or page != image['pagesize']:
+            raise Error('boot image header does not match the requested parameters')
+        if kernel_address != image['base'] + image['kernel_offset'] or tags != image['base'] + image['tags_offset']:
+            raise Error('boot image load addresses do not match the requested offsets')
+
     kernel = data[page:page + kernel_size]
     unpacker = zlib.decompressobj(16 + zlib.MAX_WBITS)
     if unpacker.decompress(kernel) != combined or not unpacker.eof or unpacker.unused_data != tree:
