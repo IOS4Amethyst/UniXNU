@@ -25,6 +25,8 @@ Format 2 applies `[kernel] patch_series` in declared order. Series can reference
 | `native-smp-secondary` | Raises `MAX_CPUS` to 8 and uses MPIDR Affinity1 for BCM2837 secondary CPUs |
 | `native-arm-pan` | Enables ARMv8.1 PAN when `XNU_NATIVE_PAN` is set |
 | `native-dt-panic-region` | Reads the panic log region from the device tree and validates it |
+| `zzzzz-video-console-physical-fb` | Maps an untagged low GOP address as a physical framebuffer |
+| `zzzzzz-video-console-text` | Switches the graphics boot console to text when `-textconsole` is set |
 
 ## Four-kilobyte pages
 
