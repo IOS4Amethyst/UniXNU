@@ -317,7 +317,11 @@ def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon
         values = registers(entry)
         if len(values) != 1 or values[0][0] > 0xffffffff:
             raise Error(f'{entry.name}: CPU affinity must fit a u32')
+        cluster = entry.strings('unixnu,cluster-type')
+        if cluster not in ([], ['E'], ['P']):
+            raise Error(f'{entry.name}: unixnu,cluster-type must be E or P')
         cpu_nodes.append(node(f'cpu{len(cpu_nodes)}', [('reg', struct.pack('<I', values[0][0])),
+                         *([('cluster-type', struct.pack('<I', ord(cluster[0])))] if cluster else []),
                          ('state', b'running\0' if not cpu_nodes else b'waiting\0'), ('device_type', b'cpu\0'),
                          ('compatible', entry.properties['compatible']),
                          ('timebase-frequency', struct.pack('<I', cpus.scalar('timebase-frequency')))]))
