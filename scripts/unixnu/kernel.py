@@ -185,6 +185,10 @@ def build(ctx, modules):
         log('kernel: prepare storage headers')
         run(['python3', ctx.tree / 'scripts/prepare-storage-headers.py'], cwd=ctx.tree, env=env,
             log_file=ctx.logs / 'storage-headers.log')
+    # A changed patch series can refresh the source while compile records
+    # survive. Archives need the omitted Apple headers before the final pass.
+    run(['python3', ctx.tree / 'scripts/prepare-xnu-source.py'], cwd=ctx.tree, env=env,
+        log_file=ctx.logs / 'archive-headers.log')
     build_archives(ctx, env)
     run(['bash', script], cwd=ctx.tree, env=env, log_file=ctx.logs / 'kernel.log')
 
