@@ -193,7 +193,7 @@ FLAGS = {'interrupt-controller', 'dma-coherent'}
 REFERENCES = {'interrupt-parent': None, 'iommus': '#iommu-cells', 'clocks': '#clock-cells'}
 
 
-def hardware_properties(entry, handles):
+def hardware_properties(entry, handles, io_base=0):
     properties = []
     for key, raw in entry.properties.items():
         if key in STRINGS:
@@ -236,6 +236,9 @@ def hardware_properties(entry, handles):
                 properties.append(('interrupt-parent', struct.pack('<I', handle)))
         elif key == 'reg':
             pairs = [(physical(entry.parent, address, size), size) for address, size in registers(entry)]
+            if any(address < io_base for address, _ in pairs):
+                raise Error(f'{entry.name}: MMIO address is below arm-io base')
+            pairs = [(address - io_base, size) for address, size in pairs]
             properties.append((key, b''.join(struct.pack('<QQ', *pair) for pair in pairs)))
     return properties
 
@@ -337,9 +340,12 @@ def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon
     names = [entry.strings('unixnu,adt-name')[0] for entry in hardware]
     if len(set(names)) != len(names):
         raise Error('Exported ADT hardware names must be unique')
+    io_base = int(str(options.get('arm_io_base', 0)), 0)
+    if not 0 <= io_base < 0x100000000:
+        raise Error('arm_io_base must be below 4 GiB')
     children.append(node('arm-io', [('device_type', b'arm-io\0'), ('#address-cells', struct.pack('<I', 2)),
-                         ('#size-cells', struct.pack('<I', 2)), ('ranges', struct.pack('<QQQ', 0, 0, 0x100000000))],
-                         [node(name, hardware_properties(entry, handles)) for name, entry in zip(names, hardware)]))
+                         ('#size-cells', struct.pack('<I', 2)), ('ranges', struct.pack('<QQQ', 0, io_base, 0x100000000 - io_base))],
+                         [node(name, hardware_properties(entry, handles, io_base)) for name, entry in zip(names, hardware)]))
     for name in ('defaults', 'options', 'product', 'buttons'):
         if name in platform or name in ('defaults', 'options', 'product'):
             children.append(node(name, typed_properties(platform.get(name, {}))))
