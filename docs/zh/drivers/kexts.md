@@ -4,6 +4,14 @@
 
 kext 包是标准 macOS 或 iOS 内核扩展目录。UniXNU 暂存包文件，并通过 `UNIXNU_LOADER_PROTOCOL` 交给 XNU 加载器。
 
+## 操作步骤 {#procedure}
+
+1. 确认所选加载器实现 revision 2 kext 请求和所需信任策略。随项目提供的 DarwinBoot 使用[内置驱动](/zh/drivers/xnu-drivers)集成。
+2. 按[构建 kext](#构建-kext)准备[包布局](#包布局)、[Info.plist](#info-plist)和匹配二进制，核对依赖与目标 OS ABI。
+3. 完成该加载器要求的[签名与信任](#签名与信任)，再将包[注册到目标启动项或 kit](#注册到-unixnu)。
+4. 核对[暂存校验](#unixnu-校验)和[依赖顺序](#顺序与依赖)，重新构建包含它的 payload 和启动镜像。
+5. 使用该加载器启动，分别记录暂存、加载器接受和驱动初始化结果。XNU 使用暂存包之前，需要加载器完成注入。
+
 ## 包布局
 
 ```

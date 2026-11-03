@@ -1,22 +1,24 @@
 # 一加 Ace 5 Pro（hummer）
 
-hummer 是搭载 SM8750 的一加 Ace 5 Pro（PKR110）。下面的移植是独立的社区项目，UniXNU 组织不维护它。
+搭载 SM8750 的社区设备移植。当前状态依据下方固定版本的维护者记录。
 
-| 仓库 | 维护者 | 状态 |
-| --- | --- | --- |
-| [UniXNU-hummer](https://github.com/2426120557/UniXNU-hummer) | [2426120557](https://github.com/2426120557) | UEFI 工作，XNU SMP 和启动检查点已显示在面板 |
-
-## 状态
-
-| 区域 | 状态 |
+| 仓库 | 维护者 |
 | --- | --- |
-| UEFI 固件和菜单 | 真机工作，GOP 显示和按键输入可用 |
-| XNU 内核 | SMP 工作，secondary 核进入调度器；内核启动检查点已画到面板；未到根卷 |
-| GPU（Adreno 830） | 未开始 |
-| 持久 Data | 未开始 |
+| [UniXNU-hummer](https://github.com/2426120557/UniXNU-hummer) | [2426120557](https://github.com/2426120557) |
 
-v51 内核把 boot-progress 检查点配上 `kboot` 行画到面板，不需要 boot-progress 诊断页就能看到早期 bootstrap。板级文件仍把 `[kernel]`、`[ipsw]` 和 `[payload]` 标为脚手架。README 把 GPU 列为主要障碍。
+## 当前状态
 
-## 维护
+设备已通过 UEFI、XNU、六个 CPU 和物理根卷到达 Hello。160 MiB 负载包含 OS/SystemOS 提取结果、UFS 策略和内存 Data。
 
-维护者拥有仓库和发布决定。UniXNU 文档记录移植及其状态，不接管维护。
+持久化 Data、GPU 加速和物理触控待完成。源码包含 S3910 触控适配，仍需单独进行设备验证。
+
+## 来源
+
+- [README: 2426120557/UniXNU-hummer](https://github.com/2426120557/UniXNU-hummer/blob/3d3d8ccd7e9544aefa5fb14ba8baad977828b435/README.md)
+
+## 使用此移植
+
+1. 阅读上方仓库的构建说明和固定版本记录，准备对应的固件、系统镜像和板级输入。
+2. 按该仓库的命令构建，通用配置见[构建与启动](/zh/building)。
+3. 按[启动验证顺序](/zh/porting/bring-up)逐项验证，通过[日志抓取](/zh/porting/log-capture)保存结果。
+4. 更新[移植记录](/zh/porting/records)，记录实际使用的源码版本及最后确认的阶段。

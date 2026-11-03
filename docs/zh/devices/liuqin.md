@@ -2,9 +2,10 @@
 
 小米平板 6 Pro（liuqin） 是搭载 SM8475 的设备。下面的移植是独立的社区项目，UniXNU 组织不维护它。
 
-| 仓库 | 维护者 | 状态 |
-| --- | --- | --- |
+| 仓库 | 维护者 |
+| --- | --- |
 | [UniXNU-liuqin](https://github.com/1696108518/UniXNU-liuqin) | [1696108518](https://github.com/1696108518) |
+| [UniXNU-liuqin](https://github.com/boomoodxf/UniXNU-liuqin) | [boomoodxf](https://github.com/boomoodxf) |
 
 ## 状态
 
@@ -13,3 +14,7 @@
 ## 维护
 
 维护者拥有仓库和发布决定。UniXNU 文档记录移植及其状态，不接管维护。
+
+## 来源
+
+- [板级配置: 1696108518/UniXNU-liuqin](https://github.com/1696108518/UniXNU-liuqin/blob/907b8e91c88e71f698292abfd8db49ba90492dc4/board.toml)

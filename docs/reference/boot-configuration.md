@@ -4,6 +4,13 @@ The UniXNU boot manager reads `\EFI\UniXNU\unixnu.toml` from the volume it was s
 
 Boot arguments are stored in the payload's `EFI/UniXNU/unixnu.toml`. After changing them, run `./unixnu payload` and `./unixnu bootimg`, then boot the new image. See [apply boot arguments](/xnu/boot-arguments#apply-arguments) for precedence and inspection commands.
 
+## Procedure {#procedure}
+
+1. Locate the configuration on the payload volume: `EFI/UniXNU/unixnu.toml`. For generated device payloads, edit the source `[payload]` settings in `board.toml` or local build inputs before rebuilding.
+2. Use the [unixnu.toml fields](#unixnu-toml) to define the entry and its paths. Check that each referenced kernel, sidecar, driver and initrd is present in the volume.
+3. For a kit, fill [Kit.toml](#kit-toml) and verify every match rule against the target. Keep paths relative to the configuration or kit as specified below.
+4. Rebuild the payload and boot image. Inspect the packaged configuration with `mtype -i <payload.img> ::/EFI/UniXNU/unixnu.toml`, then check [menu behavior](#menu-behavior) on boot.
+
 ## unixnu.toml
 
 ```toml

@@ -1,33 +1,24 @@
 # 一加 Ace 5（giulia）
 
-giulia 是搭载 SM8650 的一加 Ace 5（PKG110）。下面的移植是独立的社区项目，UniXNU 组织不维护它。内核为 Darwin 22.6 / iOS 16 构建。
+搭载 SM8650 的社区设备移植。当前状态依据下方固定版本的维护者记录。
 
-| 仓库 | 维护者 | 状态 |
-| --- | --- | --- |
-| [UniXNU-giulia](https://github.com/jasper2863/UniXNU-giulia) | [jasper2863](https://github.com/jasper2863) | 已到 GUI 进度条，安装服务受阻 |
-| [UniXNU-OnePlus-Ace5](https://github.com/tycykp/UniXNU-OnePlus-Ace5) | [tycykp](https://github.com/tycykp) | 已到 Hello 和 Setup，显示完整、触控可用；GPU 和 Wi-Fi 待完成 |
-
-## 状态
-
-| 区域 | 状态 |
+| 仓库 | 维护者 |
 | --- | --- |
-| UEFI 交接和 XNU 内存初始化 | 工作 |
-| 平台驱动、CPU0 和 SGI1 | 工作 |
-| 原生 UFS 读取 | 工作 |
-| USB CDC 调试串口 | 工作 |
-| HFSX 根卷 | 读写挂载工作 |
-| `launchd` 和系统服务 | 启动 |
-| GUI 内核 | 苹果标志和进度条，记录约 77,000 次画面提交，未观察到 SpringBoard 或 backboardd 崩溃 |
-| 可操作界面 | 未到达，安装服务受阻 |
-| 触控 | 控制器身份和报文已验证，物理触控不可用 |
-| 基带、音频、GPU 和 DRM | 未实现 |
+| [UniXNU-OnePlus-Ace5](https://github.com/tycykp/UniXNU-OnePlus-Ace5) | [tycykp](https://github.com/tycykp) |
 
-仓库保留了完整启动日志、主机检查和镜像哈希。当前阻塞点是系统应用安装和迁移路径。
+## 当前状态
 
-## tycykp 仓库
+iOS 16 / Darwin 22 移植已进入 Hello 和设置界面，覆盖完整 1264x2780 面板，触控坐标正确。CPU0、原生 UFS、HFSX 根卷、`launchd` 和 USB CDC 日志可用。精简按键构建已验证物理电源键和音量键。
 
-`UniXNU-OnePlus-Ace5` 记录了另一条 iOS 16 / Darwin 22 bring-up。2026-10-23 的真机测试到达 Hello 和 Setup，1264x2780 面板完整显示，触控对齐可用。已验证 UEFI 交接、单核 XNU 启动、原生 UFS 读取、USB CDC 串口、HFSX 根卷挂载和 `launchd` 启动。Wi-Fi 的 PCIe、BHI/BHIE、AMSS 和 QMI 资源请求已验证，但最新运行停在 QMP open，尚未到 firmware-ready。GPU 只有准备服务。音频有实验性运行时组件，未在真机播放。蜂窝和 DRM 未验证。
+Wi-Fi 已到达 PCIe、BHI/BHIE、AMSS 和 QMI 资源请求，实机在 firmware-ready 之前的 QMP open 处停止。仓库包含 GPU 准备服务和音频运行时代码，GPU 执行、无线联网及音频播放待实机验证。
 
-## 维护
+## 来源
 
-维护者拥有仓库和发布决定。UniXNU 文档记录移植及其状态，不接管维护。
+- [README: tycykp/UniXNU-OnePlus-Ace5](https://github.com/tycykp/UniXNU-OnePlus-Ace5/blob/aaa100d19f6fb14e5897a7e496edf7838d4d4e9f/README.md)
+
+## 使用此移植
+
+1. 阅读上方仓库的构建说明和固定版本记录，准备对应的固件、系统镜像和板级输入。
+2. 按该仓库的命令构建，通用配置见[构建与启动](/zh/building)。
+3. 按[启动验证顺序](/zh/porting/bring-up)逐项验证，通过[日志抓取](/zh/porting/log-capture)保存结果。
+4. 更新[移植记录](/zh/porting/records)，记录实际使用的源码版本及最后确认的阶段。

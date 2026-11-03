@@ -16,11 +16,19 @@ flowchart TD
 固件和 bootloader 接口使用 FDT。XNU 接收与 `kernel.macho` 放在一起的 ADT sidecar，
 DarwinBoot 从启动项目录读取它。
 
+## 操作步骤 {#procedure}
+
+1. 准备板级 DTS、所选 SoC DTSI 和驱动读取的属性，按[配置](#配置)设置源文件与 include 路径。
+2. 按[硬件绑定](#硬件绑定)描述父节点 cell 宽度、地址范围、中断、引用和启用节点，核对 [XNU 必需节点](#必需节点)。
+3. 将 Apple 平台属性放在所选 [OS profile](#os-属性)，按需添加板级覆盖。根卷 UUID 和 payload 交接选项应匹配实际输入。
+4. 执行[独立转换](#独立转换)，编译 DTB 并用所选输入生成 ADT。核对编译诊断、生成的节点名称与驱动匹配要求。
+5. 使用保存的输入运行 `./unixnu payload` 和 `./unixnu bootimg`，检查解析输出目录中的 `device-tree/hardware.dtb` 和 payload 报告。[固件 DTB](#启动镜像设备树)单独作为启动镜像输入。
+
 ## 配置
 
 ```toml
 [device_tree]
-source = "device:dts/sheng.dts"
+source = "device:dts/myboard.dts"
 include_dirs = ["soc:dts"]
 ```
 
@@ -34,13 +42,13 @@ payload 步骤运行 `dtc`，在解析后的输出目录写入 `device-tree/hard
 /include/ "sm8550.dtsi"
 
 / {
-    model = "Xiaomi Pad 6S Pro";
-    compatible = "xiaomi,sheng", "qcom,sm8550";
+    model = "Example SM8550 device";
+    compatible = "vendor,myboard", "qcom,sm8550";
 };
 ```
 
 完整板级源码提供内存、启用的 CPU 和外设输入。参见[设备模板](/zh/porting/device-repository)
-和 [SM8550 支持](/zh/porting/sm8550)。
+和 [SoC 支持](/zh/porting/soc-support)。
 
 ## 硬件绑定
 
@@ -55,6 +63,7 @@ payload 步骤运行 `dtc`，在解析后的输出目录写入 `device-tree/hard
 | `interrupt-parent` | 控制器 phandle | 小端 phandle |
 | `iommus`, `clocks` | phandle 和提供者定义的参数 cell | 小端 cell |
 | `unixnu,adt-name` | 导出的硬件节点名 | `/arm-io` 下的子节点名 |
+| `unixnu,cluster-type` | CPU 节点上的 `"E"` 或 `"P"` | `cluster-type`，该字符的小端 u32 |
 | `status` | `okay`、`ok` 或禁用状态 | 选择启用节点 |
 
 参与地址转换的总线声明 `ranges`，空 `ranges` 表示恒等映射。每个寄存器范围必须恰好
@@ -87,9 +96,16 @@ sleep-disabled = 1
 
 ## 独立转换
 
+设置设备与 SoC 源码路径，将本机平台种子导出为 `UNIXNU_UNIQUE_CHIP_ID`，并选择 OS 配置：
+
 ```sh
-dtc -I dts -O dtb -i ../UniXNU-sm8550-common/dts   -o /tmp/sheng.dtb ../UniXNU-sheng/dts/sheng.dts
-python3 scripts/make-adt.py --dtb /tmp/sheng.dtb   --os-profile profiles/os/ipados-17.7.11-21H461/profile.toml   --board ../UniXNU-sheng/board.toml --unique-chip-id <hex>   --data-ramdisk --trust-cache --output /tmp/kernel.macho.adt
+DEVICE_DIR=/path/to/device
+SOC_DTS=/path/to/soc/dts
+dtc -I dts -O dtb -i "$SOC_DTS" -o /tmp/board.dtb "$DEVICE_DIR/dts/myboard.dts"
+python3 scripts/make-adt.py --dtb /tmp/board.dtb \
+  --os-profile profiles/os/ipados-17.7.11-21H461/profile.toml \
+  --board "$DEVICE_DIR/board.toml" --unique-chip-id "$UNIXNU_UNIQUE_CHIP_ID" \
+  --data-ramdisk --trust-cache --output /tmp/kernel.macho.adt
 ```
 
 命令根据提供的 payload 输入选择内存映射占位属性。`unixnu build payload` 使用完整
@@ -207,7 +223,7 @@ arm-io {
 }
 ```
 
-`ranges` 映射总线窗口。共享生成器将源寄存器转换为物理地址，并生成恒等映射的 `arm-io` 总线。
+`ranges` 映射总线窗口。共享生成器先将源寄存器转换为物理地址，再生成单一窗口的 `arm-io`：从最低的导出寄存器（向下对齐到 16 MiB）到最高的导出寄存器。子节点 `reg` 是相对窗口基址的偏移。XNU 把该基址读作 SoC 基址且要求非零，因此低于 16 MiB 的导出寄存器会报错。
 
 ### product 与 buttons
 

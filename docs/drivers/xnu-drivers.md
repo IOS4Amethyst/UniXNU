@@ -4,6 +4,14 @@ Follow [driver discovery and adaptation](/porting/drivers) first. This page impl
 
 An XNU driver in UniXNU is a C++ IOKit class compiled into the kernel. The kernel links the driver as a static archive and starts it through a personality in `KernelConfigTables.cpp`.
 
+## Procedure {#procedure}
+
+1. Prepare the selected kernel's generated headers and compile records with [kernel preparation](/guide/build-kernel). Run the examples below from its assembled target tree.
+2. Create the [source files](#source-layout) and [driver class](#driver-class); adapt provider resources and lifecycle methods to the hardware.
+3. [Compile against the selected ABI](#compile-against-the-kernel-abi), create the [archive](#archive), and add the [link inputs](#link-into-the-kernel) to the device's build selection.
+4. Add a [personality](#add-a-personality) and matching ADT resources. Check provider names, property types and resource dependencies together.
+5. Rebuild with `./unixnu kernel` from the main checkout, then rebuild payload and boot image. Follow [testing](#testing); confirm driver start and the subsystem's required operations in the device log.
+
 ## Source layout
 
 ```

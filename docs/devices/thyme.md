@@ -1,15 +1,24 @@
 # Xiaomi Mi 10S (thyme)
 
-Xiaomi Mi 10S (thyme) is a SM8250-AC device. The port below is an independent community project. The UniXNU organization does not maintain it.
+A community-maintained port for SM8250-AC. Current results are based on the maintainer records at the revisions linked below.
 
-| Repository | Maintainer | State |
-| --- | --- | --- |
+| Repository | Maintainer |
+| --- | --- |
 | [UniXNU-thyme](https://github.com/tobyfox1640/UniXNU-thyme) | [tobyfox1640](https://github.com/tobyfox1640) |
+| [UniXNU-thyme](https://github.com/Coryyi/UniXNU-thyme) | [Coryyi](https://github.com/Coryyi) |
 
 ## State
 
-The repository has the board file, defconfig, legacy display, platform power and ADT scripts. It does not document a hardware result.
+The Coryyi board file identifies Mi 10S and records measured SM8250-family board inputs. Kernel configuration and early trace work are present. The tobyfox1640 repository provides another board, defconfig and ADT implementation. Target-specific boot and userland results remain to be published.
 
-## Maintenance
+## Sources
 
-The maintainer owns the repository and its release decisions. UniXNU documentation lists the port and its state; it does not take over maintenance.
+- [Board configuration: tobyfox1640/UniXNU-thyme](https://github.com/tobyfox1640/UniXNU-thyme/blob/8efba539ce54b34e576e71799498d287c6eba894/board.toml)
+- [Board configuration: Coryyi/UniXNU-thyme](https://github.com/Coryyi/UniXNU-thyme/blob/8728dc4666759998a7873966bd220702af638fec/board.toml)
+
+## Use this port
+
+1. Read the repository build instructions and pinned records. Prepare its firmware, system images and board inputs.
+2. Build with that repository's commands. Use [Build and boot](/building) for common configuration.
+3. Follow the [bring-up order](/porting/bring-up) and save results through [log capture](/porting/log-capture).
+4. Update the [porting record](/porting/records) with the source revisions and last confirmed stage.

@@ -1,18 +1,28 @@
 # Xiaomi Pad 5 (nabu)
 
-nabu is the Xiaomi Pad 5 with the SM8150 SoC. The port below is an independent community project. The UniXNU organization does not maintain it.
+A community-maintained port for SM8150. Current results are based on the maintainer records at the revisions linked below.
 
-| Repository | Maintainer | State |
-| --- | --- | --- |
-| [unixnu-nabu](https://github.com/Lux12138/unixnu-nabu) | [Lux12138](https://github.com/Lux12138) | XNU reaches vfs_mountroot; root device next |
-| [unixnu-nabu](https://github.com/zzc775/unixnu-nabu) | [zzc775](https://github.com/zzc775) | Alternate nabu repository for a retail 6 GB unit |
-| [unixnu-nabu-build](https://github.com/3214791900-del/unixnu-nabu-build), [uefi-nabu-build](https://github.com/3214791900-del/uefi-nabu-build) | [3214791900-del](https://github.com/3214791900-del) | Kernel and UEFI build trees |
-| [NativeDwc3](https://github.com/Lux12138/NativeDwc3) | [Lux12138](https://github.com/Lux12138) | Native DWC3 USB3 DRD controller driver |
+| Repository | Maintainer |
+| --- | --- |
+| [unixnu-nabu](https://github.com/Lux12138/unixnu-nabu) | [Lux12138](https://github.com/Lux12138) |
+| [unixnu-nabu](https://github.com/zzc775/unixnu-nabu) | [zzc775](https://github.com/zzc775) |
+| [unixnu-nabu-build](https://github.com/3214791900-del/unixnu-nabu-build) | [3214791900-del](https://github.com/3214791900-del) |
+| [uefi-nabu-build](https://github.com/3214791900-del/uefi-nabu-build) | [3214791900-del](https://github.com/3214791900-del) |
+| [NativeDwc3](https://github.com/Lux12138/NativeDwc3) | [Lux12138](https://github.com/Lux12138) |
 
 ## State
 
-The boot chain reaches XNU: `fastboot boot` starts Mu UEFI, the UniXNU menu reads the cust payload, DarwinBoot validates the 51 MB kernel and hands off, and the green XNU screen appears. The kernel now reaches `vfs_mountroot`. The earlier IOsurface stop was the last line that reached the framebuffer, not the blocker. A root device is next.
+XNU reaches `load_init_program()` and attempts `/sbin/launchd`. The recorded run fails with `errno 2` (`ENOENT`); root contents need correction. Source-kernel builds run locally on Linux.
 
-## Maintenance
+The recorded memory layout belongs to a tablet upgraded to 12 GiB RAM. Measure DRAM and partition values for the target tablet before using its configuration.
 
-The maintainer owns the repository and its release decisions. UniXNU documentation lists the port and its state; it does not take over maintenance.
+## Sources
+
+- [Status: Lux12138/unixnu-nabu](https://github.com/Lux12138/unixnu-nabu/blob/2eff53cdba9f45228e70c80102158fd0bc755236/STATUS.md)
+
+## Use this port
+
+1. Read the repository build instructions and pinned records. Prepare its firmware, system images and board inputs.
+2. Build with that repository's commands. Use [Build and boot](/building) for common configuration.
+3. Follow the [bring-up order](/porting/bring-up) and save results through [log capture](/porting/log-capture).
+4. Update the [porting record](/porting/records) with the source revisions and last confirmed stage.

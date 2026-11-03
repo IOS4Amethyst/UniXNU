@@ -7,26 +7,23 @@ migration:
   link: /zh/porting/migration
 hero:
   text: 在非 Apple ARM64 硬件上运行 iOS 与 macOS
-  tagline: UEFI 启动管理器、设备树平台、打过补丁的 XNU 内核和完整启动镜像。
+  tagline: 类似 OpenCore 的通用 UEFI 环境和驱动加载系统，配合设备树平台、打过补丁的 XNU 内核和完整启动镜像。
   image:
     src: /logo-light.svg
     alt: UniXNU 标志
   actions:
     - theme: brand
-      text: 从这里开始
-      link: /zh/guide/overview
-    - theme: brand
-      text: 支持的设备
-      link: /zh/devices/
-    - theme: alt
       text: 移植设备
       link: /zh/porting/
+    - theme: brand
+      text: 已支持的设备
+      link: /zh/devices/
     - theme: alt
       text: GitHub
       link: https://github.com/UniXNU/UniXNU
     - theme: alt
       text: X
-      link: https://x.com/unixnu
+      link: https://x.com/UniXNU_new
     - theme: alt
       text: Telegram
       link: https://t.me/unixnu

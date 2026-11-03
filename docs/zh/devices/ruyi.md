@@ -1,15 +1,15 @@
 # 小米 MIX Flip（ruyi）
 
-小米 MIX Flip（ruyi） 是搭载 SM8650 的设备。下面的移植是独立的社区项目，UniXNU 组织不维护它。
+搭载 SM8650 的社区设备移植，由 ArnoDorian123 维护。
 
-| 仓库 | 维护者 | 状态 |
-| --- | --- | --- |
-| [UniXNU-ruyi-min](https://github.com/ArnoDorian123/UniXNU-ruyi-min) | [ArnoDorian123](https://github.com/ArnoDorian123) |
+- [ArnoDorian123/UniXNU-ruyi](https://github.com/ArnoDorian123/UniXNU-ruyi)
+- [ArnoDorian123/uefi-ruyi](https://github.com/ArnoDorian123/uefi-ruyi)
+- [ArnoDorian123/UniXNU-ruyi-min](https://github.com/ArnoDorian123/UniXNU-ruyi-min)
 
-## 状态
+## 当前状态
 
-仓库包含板级文件和 defconfig。没有 README，也没有记录真机结果。
+主设备仓库包含 ruyi 板级配置和内核 defconfig，选择 iPad7,1 / iPadOS 17.7.11 系统输入。板级文件中的 TODO 需要补齐并实测，目标设备启动结果待发布。
 
-## 维护
+## 来源
 
-维护者拥有仓库和发布决定。UniXNU 文档记录移植及其状态，不接管维护。
+- [板级配置: ArnoDorian123/UniXNU-ruyi](https://github.com/ArnoDorian123/UniXNU-ruyi/blob/5394473ed77d634269e9023d4f97a9429242ef5a/board.toml)

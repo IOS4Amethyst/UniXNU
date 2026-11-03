@@ -1,4 +1,4 @@
-# Build
+# Build and boot
 
 `unixnu` resolves ARM64, SoC, OS, and device profiles, selects component dependencies, assembles a target tree, and runs each build step. Format 2 uses `out/<device>/<os_profile>/<config>/`. Format 1 uses `out/<board>/`.
 
@@ -9,22 +9,24 @@ Build the device firmware with `./unixnu build firmware --uefi ../uefi-<device>`
 ## 1. Prepare the host and repositories {#quick-start}
 
 Read [Requirements](/guide/requirements), then choose a port from
-[Devices](/devices/). New ports follow [Port a device](/porting/) first.
+[Devices](/devices/). New ports follow [Port a device](/porting/steps) first.
 Obtain the port's device and UEFI repositories, including their submodules.
-For example, sheng uses:
+Set the repository URLs and defconfig for the selected port:
 
 ```sh
+DEVICE_REPOSITORY=https://github.com/your-org/UniXNU-myboard
+UEFI_REPOSITORY=https://github.com/your-org/uefi-myboard
+DEFCONFIG=myboard_defconfig
 git clone --recurse-submodules https://github.com/UniXNU/UniXNU
-git clone --recurse-submodules https://github.com/UniXNU/UniXNU-sheng
-git clone --recurse-submodules https://github.com/UniXNU/uefi-sheng
+git clone --recurse-submodules "$DEVICE_REPOSITORY" UniXNU-device
+git clone --recurse-submodules "$UEFI_REPOSITORY" uefi-device
 cd UniXNU
-./unixnu defconfig sheng_defconfig -D ../UniXNU-sheng
+./unixnu defconfig "$DEFCONFIG" -D ../UniXNU-device
 ./unixnu fetch
 ./unixnu status --json
 ```
 
-Use your port's repository and defconfig names. `status` reports the effective
-profiles, revisions, patch order and output directory. `-D` is remembered in
+`status` reports the effective profiles, revisions, patch order and output directory. `-D` is remembered in
 `out/state.json`. Run subsequent commands from the main UniXNU checkout.
 
 **Expected result:** the intended device/configuration and resolved source paths.
@@ -37,9 +39,8 @@ cp unixnu.example.toml unixnu.local.toml
 
 Fill the local file using [local build configuration](/reference/configuration#local-build-inputs).
 Set the device and UEFI paths, firmware DTB, platform identity and required
-kernelcache, trust-cache and Data seed inputs. Use the board's inventory;
-[sheng build inputs](/porting/migration#build-inputs) lists its additional SDK,
-firmware and ABI requirements.
+kernelcache, trust-cache and Data seed inputs. Use the board's inventory and the
+[build-input checklist](/porting/migration#build-inputs) for SDK, firmware and ABI requirements.
 
 ```sh
 ./unixnu ipsw info
@@ -117,7 +118,7 @@ configuration. After changing kernel code, also rebuild the kernel first.
 
 ## macOS runner
 
-The kernel, userdata and Data seed steps call Xcode, `hdiutil` and `diskutil`. A fork can run them on a GitHub macOS runner without a local Mac. The workflow is a build check: it publishes redacted text logs and no images.
+The kernel step calls Xcode on macOS, and the Data seed steps call `hdiutil` and `diskutil`. A fork can run them on a GitHub macOS runner without a local Mac. The workflow is a build check: it publishes redacted text logs and no images.
 
 1. Fork the repository and enable Actions.
 2. Add the repository secret `UNIXNU_UNIQUE_CHIP_ID` when the board requires a platform seed for its payload.
@@ -299,7 +300,7 @@ The kernel command line comes from `[payload] kernel_args`. An extra `--kernel-a
 
 ### userdata
 
-The userdata step builds the raw image for the `userdata` partition. It holds the unchanged `OS` and `SystemOS` disk images of the IPSW behind the `SHNGROOT` manifest. The disk images are attached read-only with `hdiutil`. The output is `out/<device>/<os_profile>/<config>/userdata/userdata-root.img` with `userdata-root.json`.
+The userdata step builds the raw image for the `userdata` partition. It holds the unchanged `OS` and `SystemOS` disk images of the IPSW behind the `SHNGROOT` manifest. On macOS the disk images are attached read-only with `hdiutil`; on Linux `scripts/unixnu/udif.py` decodes them, with `lzfse` for LZFSE chunks. Both give the same bytes. The output is `out/<device>/<os_profile>/<config>/userdata/userdata-root.img` with `userdata-root.json`.
 
 The report prints the `fastboot flash userdata` command.
 

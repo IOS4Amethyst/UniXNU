@@ -2,6 +2,13 @@
 
 MobileGestalt 从 Apple 设备树（ADT）读取设备信息。负载在构建时写入 ADT，修改身份不需要改动已签名的内核和用户态镜像。
 
+## 操作步骤 {#procedure}
+
+1. 按 [iPadOS 与 iOS](#ipados-与-ios)确认用户态系列，选择匹配的 model、target 和 product 值。
+2. 按[应用](#应用)修改带类型的 ADT 属性，同时核对[属性表](#属性)和[手势要求](#全面屏手势)。
+3. 运行 `./unixnu payload` 和 `./unixnu bootimg`，再启动新镜像。
+4. 检查设备报告的身份和界面行为。结果仍为先前值时，按[缓存说明](#缓存)检查，记录受影响的缓存及镜像。
+
 ## 属性
 
 | 属性 | 节点 | 示例 | 作用 |
@@ -34,7 +41,7 @@ MobileGestalt 从 Apple 设备树（ADT）读取设备信息。负载在构建�
 - `/buttons` 不包含 `menu`
 - `home-button-type = 2`
 
-SpringBoard 通过 `BSPlatform homeButtonType` 读取该值。值为 2 时，锁屏使用上滑手势。sheng 上从锁屏上滑可以到达密码界面，密码界面把设备识别为 iPad。
+SpringBoard 通过 `BSPlatform homeButtonType` 读取该值。值为 2 时，锁屏使用上滑手势。
 
 ## iPadOS 与 iOS
 

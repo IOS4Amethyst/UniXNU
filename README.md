@@ -21,68 +21,28 @@
 
 > **Migration notice:** Update your device repository for shared SoC support and canonical component names. Follow the [migration guide](https://unixnu.com/porting/migration).
 
-An independent project to run iOS and macOS on non-Apple ARM64 hardware through UEFI.
+An independent project to run iOS and macOS on non-Apple ARM64 hardware through UEFI. Like OpenCore, UniXNU is a general UEFI environment and driver loading system: it loads the drivers a device needs and boots the OS through a common UEFI layer.
 
 UniXNU provides shared build tools, ARM64 support, OS profiles and reusable components for ports across SoCs and devices. SoC repositories supply common platform support, and device repositories supply board configuration and hardware integration.
 
-**🎉 News:** Adreno740 and AdrenoMetal provide GPU acceleration on sheng. The render server composites the system UI through the Adreno 740, and listed processes get their own Metal devices. These components are shared GPU implementations; each device port supplies the required firmware, power, memory and display integration. See the [Adreno 740 driver documentation](https://unixnu.com/drivers/adreno740).
+**🎉 News:** Adreno740 and AdrenoMetal implement GPU acceleration for A740/SM8550. See the [Adreno 740 driver documentation](https://unixnu.com/drivers/adreno740).
 
-## Firmware requirement
-
-Build the device firmware with `./unixnu build firmware --uefi ../uefi-<device>` before `./unixnu bootimg`. Include UniXNU, UniXNUDxe, DarwinBoot and the shared `UniXNURamDiskDxe` payload driver in the firmware. Follow the [required firmware integration](https://unixnu.com/porting/uefi-firmware#required-integration).
-
-Save paths and boot arguments in [`unixnu.local.toml`](https://unixnu.com/reference/configuration#local-build-inputs) to run `./unixnu kernel`, `./unixnu firmware`, `./unixnu payload`, and `./unixnu bootimg`. After changing boot arguments, rebuild the payload and boot image. See [boot arguments](https://unixnu.com/xnu/boot-arguments#apply-arguments) and [green-bar diagnosis](https://unixnu.com/guide/debugging#green-bar).
-
-## Documentation
-
-Follow [Port a device](https://unixnu.com/porting/) in order, including the [driver adaptation checklist](https://unixnu.com/porting/drivers) for platform, storage, display, brightness, input, GPU, Wi-Fi, audio and power.
-
-Linux setup supports apt, dnf, pacman and zypper, plus environments with dependencies installed separately. See [Linux requirements](https://unixnu.com/guide/requirements#linux).
-
-The documentation is at [unixnu.com](https://unixnu.com). Its sources, navigation, translations, assets, configuration, and deployment workflow are maintained in this repository. It covers the boot chain, the build driver, device porting, driver development, the 4 KiB XNU page patches, boot arguments and per-device notes.
-
-- [Overview](https://unixnu.com/guide/overview)
-- [Build](https://unixnu.com/building)
-- [Boot the image](https://unixnu.com/guide/boot)
-- [Debugging and logs](https://unixnu.com/guide/debugging)
-- [Porting](https://unixnu.com/porting/)
-- [Drivers](https://unixnu.com/drivers/overview)
-- [XNU and 4 KiB pages](https://unixnu.com/xnu/four-k-page-tables)
-- [Devices](https://unixnu.com/devices/)
+Documentation: [unixnu.com](https://unixnu.com). Start with [Port a device](https://unixnu.com/porting/) or [Build and boot](https://unixnu.com/building).
 
 ## Repositories
 
 | Repository | Contents |
 | --- | --- |
-| [UniXNU](https://github.com/UniXNU/UniXNU) | Build tools, component catalog, ARM64 support, OS profiles, templates, UEFI package and documentation site |
-| [UniXNU-sm8550-common](https://github.com/UniXNU/UniXNU-sm8550-common) | Shared SM8550 configuration, DTSI, platform operations and patch series |
-| [UniXNU-sheng](https://github.com/UniXNU/UniXNU-sheng) | Device repository for the Xiaomi Pad 6S Pro |
-| [uefi-sheng](https://github.com/UniXNU/uefi-sheng) | UEFI firmware port for the Xiaomi Pad 6S Pro |
+| [UniXNU](https://github.com/UniXNU/UniXNU) | Build tools, component catalog, ARM64 support, OS profiles, UEFI package, documentation |
+| [UniXNU-sm8550-common](https://github.com/UniXNU/UniXNU-sm8550-common) | Shared SM8550 support |
+| [UniXNU-sheng](https://github.com/UniXNU/UniXNU-sheng) | Xiaomi Pad 6S Pro |
+| [uefi-sheng](https://github.com/UniXNU/uefi-sheng) | UEFI firmware for the Xiaomi Pad 6S Pro |
 
-The main checkout contains shared drivers and kits. Device repositories own their board driver submodules; sheng supplies ShengUfs and ShengHidInput alongside its touch and preflight components. The catalog describes available components, and the build tools assemble the selected device sources. Clone repositories with `--recurse-submodules`.
-
-Device repositories select pinned SoC sources, OS profiles, and components. The build tools merge the profiles, resolve dependencies, compile the board DTS, and generate the ADT. Start with [AGENTS.md](AGENTS.md), [the device template](examples/device/README.md), and [the migration guide](https://unixnu.com/porting/migration).
-
-## Official device development
-
-Every official device maintains `porting.toml` with hardware inputs, configuration,
-procedures, findings, evidence and completion criteria for each subsystem.
-Maintainers and agents use this record. The site renders it from the device
-revision pinned in `devices.toml`.
-
-The required CI check covers the record structure, component dependencies and
-updates to findings or evidence for changed code. Start with the
-[record guide](https://unixnu.com/porting/records),
-[UFS porting guide](https://unixnu.com/porting/ufs) and
-[device template](examples/device/README.md).
+Clone with `--recurse-submodules`.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for the repository scope, the development workflow, the commit format and the documentation rules.
-
-## Private blobs
-
-Do not add Apple IPSW files, kernelcaches, disk images, trust caches, Data seeds or vendor firmware to this repository. Keep them in a local cache or external storage.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

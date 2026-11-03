@@ -4,6 +4,13 @@ UniXNU 启动管理器先从启动所在卷读取 `\EFI\UniXNU\unixnu.toml`，�
 
 启动参数保存在负载的 `EFI/UniXNU/unixnu.toml` 中。修改后运行 `./unixnu payload` 和 `./unixnu bootimg`，再启动新镜像。参数优先级和检查命令见[应用启动参数](/zh/xnu/boot-arguments#apply-arguments)。
 
+## 操作步骤 {#procedure}
+
+1. 找到 payload 卷中的 `EFI/UniXNU/unixnu.toml`。设备自动生成的 payload 先修改 `board.toml` 的 `[payload]` 或本地构建输入，再重新生成。
+2. 按 [unixnu.toml 字段](#unixnu-toml)设置启动项与路径，确认引用的内核、sidecar、驱动和 initrd 都在卷中。
+3. 使用 kit 时填写 [Kit.toml](#kit-toml)，逐项核对目标是否满足匹配规则，并按下方规范使用相对于配置或 kit 的路径。
+4. 重新构建 payload 和启动镜像。用 `mtype -i <payload.img> ::/EFI/UniXNU/unixnu.toml` 检查打包配置，启动后核对[菜单行为](#菜单行为)。
+
 ## unixnu.toml
 
 ```toml

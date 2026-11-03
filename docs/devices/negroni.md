@@ -1,26 +1,24 @@
 # OnePlus 10 Pro 5G (negroni)
 
-negroni is the OnePlus 10 Pro 5G (NE2213) with the SM8450 SoC. The port below is an independent community project. The UniXNU organization does not maintain it. It runs the iPhone X iOS 16.7.16 userland on an xnu-8796 kernel from the ios-sweet series through Mu-Silicium UEFI and UniXNU/DarwinBoot.
+Community ports for OnePlus 10 Pro 5G (negroni, SM8450). The pawlickerr record uses NE2213; the independent iOSPlus10 workspace uses NE2211.
 
-| Repository | Maintainer | State |
-| --- | --- | --- |
-| [UniXNU-negroni](https://github.com/pawlickerr/UniXNU-negroni) | [pawlickerr](https://github.com/pawlickerr) | iOS 16.7.16 SpringBoard on hardware; CPU-rendered |
-| [Mu-Silicum-negroni](https://github.com/pawlickerr/Mu-Silicum-negroni) | [pawlickerr](https://github.com/pawlickerr) | Mu-Silicium UEFI firmware |
+| Repository | Maintainer |
+| --- | --- |
+| [UniXNU-negroni](https://github.com/pawlickerr/UniXNU-negroni) | [pawlickerr](https://github.com/pawlickerr) |
+| [Mu-Silicum-negroni](https://github.com/pawlickerr/Mu-Silicum-negroni) | [pawlickerr](https://github.com/pawlickerr) |
+| [iOSPlus10](https://github.com/akshaynexus/iOSPlus10) | [akshaynexus](https://github.com/akshaynexus) |
 
 ## State
 
-| Stage | State |
-| --- | --- |
-| Boot | the ios-sweet shim starts Mu-Silicium; the UniXNU menu entry is "iOS 16 (negroni-ios XNU)"; the 64 MiB NEGRONIESP payload carries the kernel and ADT |
-| Kernel | xnu-8796 from ios-sweet; DarwinBoot enters it in a 3 GiB window |
-| Root | iOS 16.7.16 root on UFS, read-write |
-| Userland | SpringBoard on 8 cores, with touch, hardware keys and a persistent console log |
-| Packages | Sileo and the Procursus bootstrap are installed |
-| Display | CPU-rendered, without GPU acceleration |
-| Wi-Fi | QCA6490 on PCIe0 not up |
+The pawlickerr port records iOS 16.7.16 SpringBoard with touch and CPU rendering.
 
-The root image replaces the Android userdata partition. The repository README records the build, flash and boot commands.
+The independent iOSPlus10 workspace records Metal composition in `backboardd`: a 150-second device run completes without a crash, with 4.5 to 8 ms command buffers and up to 83 GPU presentations/s. These measurements apply to that workspace's selected configuration. The QCA6490 PCIe link and device response are verified; Wi-Fi networking, audio playback and charging changes require further device results.
 
 ## Maintenance
 
 The maintainer owns the repository and its release decisions. UniXNU documentation lists the port and its state; it does not take over maintenance.
+
+## Sources
+
+- [Port README: pawlickerr/UniXNU-negroni](https://github.com/pawlickerr/UniXNU-negroni/blob/f812002ae3e6b861d23007efdfd9f1c394934ba9/README.md)
+- [Workspace status: akshaynexus/iOSPlus10](https://github.com/akshaynexus/iOSPlus10/blob/c0a451fbe774b44a47ce91795d1f8b5b1c4ac351/docs/plan.md)

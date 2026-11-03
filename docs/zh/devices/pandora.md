@@ -1,25 +1,20 @@
 # 小米 17 Pro（pandora）
 
-pandora 是搭载 SM8850 的小米 17 Pro。下面的移植是独立的社区项目，UniXNU 组织不维护它。它在由 ios-sweet 补丁系列构建的 xnu-8796 内核上运行 iPhone X 的 iOS 16.7.16 用户态。由 `fastboot boot` 启动的小型加载器取代 UEFI 启动链。内核使用 UniXNU 的原生 4 KiB 补丁，原版 Apple kext 用 NativePrelink 预链接。
+搭载 SM8850 的社区设备移植。当前状态依据下方固定版本的维护者记录。
 
-| 仓库 | 维护者 | 状态 |
-| --- | --- | --- |
-| [ios-pandora](https://github.com/ShueiTsuki/ios-pandora) | [ShueiTsuki](https://github.com/ShueiTsuki) | 已在真机到达 iOS 16.7.16 主屏幕，触控和按键可用；GPU 内核驱动可执行命令缓冲 |
-| [data-a-live](https://github.com/ShueiTsuki/data-a-live) | [ShueiTsuki](https://github.com/ShueiTsuki) | 使用自建 XNU 内核的原生 iOS 16 项目 |
-
-## 状态
-
-| 阶段 | 状态 |
+| 仓库 | 维护者 |
 | --- | --- |
-| 启动 | `fastboot boot` 启动携带内核、ADT 和负载的加载器镜像；不修改 Android 和任何分区 |
-| CPU | 8 核，4 KiB 页 |
-| 存储 | 原生 UFS 驱动；根文件系统是 Android userdata 分区中的固定文件，按其 extent 读写，无需清除数据 |
-| 显示 | 1220x2656 面板，使用引导程序的帧缓冲；亮度通过 DSI DCS 调节 |
-| 输入 | Synaptics 触控走 GPI DMA；电源键和音量键 |
-| 用户态 | iOS 16.7.16（20H392）主屏幕，壁纸和小组件正常；CPU 渲染，模糊效果和资源库显示不正确 |
-| 原版 kext | AMFI 及其依赖用 NativePrelink 预链接，已在真机运行 |
-| GPU | Adreno 840 内核驱动已在真机运行：GMU 冷启动和 HFI、GX 供电、GPU SMMU 上下文、带 SQE 和 zap shader 的 CP；间接缓冲可执行，BR 和 BV 上的 fence 均能完成；采用 NativeAdreno ABI 的 user client 已注册，并在真机通过内核自测和用户态测试程序；尚未渲染 |
-| 音频、相机 | 不可用 |
+| [data-a-live](https://github.com/ShueiTsuki/data-a-live) | [ShueiTsuki](https://github.com/ShueiTsuki) |
+
+## 当前状态
+
+设备已进入 iOS 16.7 主屏幕并运行应用，触控、电源/音量键和亮度控制可用。八个 CPU 已运行，记录包含按负载调频、空闲休眠和过热降频。
+
+维护者记录了 Adreno 840、Turnip Vulkan 和 Metal 翻译层对系统界面的 GPU 合成。面板直接扫描渲染后的缓冲区，报告的动画帧率约为 120 Hz 面板上的 110 帧/秒。音频 DSP 启动和通信可用，扬声器播放、真实电量报告、Wi-Fi、蜂窝网络及相机支持待完成。
+
+## 来源
+
+- [README: ShueiTsuki/data-a-live](https://github.com/ShueiTsuki/data-a-live/blob/91f1f2468f30841c39123c7ba20ae520ecd82c84/README.md)
 
 ## 构建
 
@@ -32,6 +27,9 @@ KERNEL=<out> tools/boot_ios.sh --file /data/local/tmp/iosroot.img --run <N> --rd
 
 `tools/boot_ios.sh` 解析固定根文件的 extent，构建负载和加载器镜像，并用 `fastboot boot` 启动。内核、kernelcache、根镜像和信任缓存是外部输入，不存放在仓库中。
 
-## 维护
+## 使用此移植
 
-维护者拥有仓库和发布决定。UniXNU 文档记录移植及其状态，不接管维护。
+1. 阅读上方仓库的构建说明和固定版本记录，准备对应的固件、系统镜像和板级输入。
+2. 按该仓库的命令构建，通用配置见[构建与启动](/zh/building)。
+3. 按[启动验证顺序](/zh/porting/bring-up)逐项验证，通过[日志抓取](/zh/porting/log-capture)保存结果。
+4. 更新[移植记录](/zh/porting/records)，记录实际使用的源码版本及最后确认的阶段。

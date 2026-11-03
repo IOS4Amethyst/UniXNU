@@ -1,8 +1,15 @@
 # 构建环境
 
+## 操作步骤 {#procedure}
+
+1. 按要执行的构建步骤选择[主机工具链](#主机)，完成 macOS 或 Linux 安装说明，确认所需工具可用。
+2. 为所选 OS profile 收集[外部输入](#外部输入)：IPSW/kernelcache、trust cache、Data seed 和需要的驱动 ABI 输入，记录路径与版本。
+3. 核对[设备输入](#设备)：设备仓库、固件仓库和目标 DTB，将路径保存到[本地配置](/zh/reference/configuration#local-build-inputs)。
+4. 继续[构建与启动](/zh/building)。选定 defconfig 后运行 `./unixnu status --json`，确认设备、OS profile 和源码路径与上述输入一致。
+
 ## 主机
 
-构建驱动在 macOS 上运行。内核步骤调用带 `iphoneos` SDK 的 `xcodebuild`，`--skip-setup` 调用 `hdiutil`。内核步骤也可以在 Linux 上用 [Linux](#linux) 一节所述的工具链运行。
+构建驱动支持 macOS 和 Linux。macOS 内核步骤使用 Xcode 和 `iphoneos` SDK，Linux 使用 [Linux 工具链](#linux)。`--skip-setup` 和 Data seed 调整使用 macOS 镜像工具。
 
 | 工具 | 用途 | 安装方式 |
 | --- | --- | --- |
@@ -64,7 +71,7 @@ sudo scripts/linux/setup-toolchain.py --package-manager none --llvm-config /path
 
 `--llvm-config FILE` 或 `LLVM_CONFIG` 选择主机 LLVM 安装，其 `clang`、`clang++`、libclang 和资源头文件一起解析。XNU 专用 Clang 从固定的 LLVM 源码构建。`-j N` 设置构建并行度。位置参数指定安装前缀，默认值为 `/opt/unixnu-linux` 或 `UNIXNU_TOOLCHAIN`。
 
-脚本把 `xcrun`、`plutil` 和 `codesign` 包装脚本写入 `/usr/bin`，XNU makefile 从这里调用它们。Mach-O 静态库、libdispatch 和 BlocksRuntime 保存在工具链前缀下。编译 Clang 占用主要安装时间。userdata 步骤、`--skip-setup` 和 `seed-data-grow` 需要 macOS。
+脚本把 `xcrun`、`plutil` 和 `codesign` 包装脚本写入 `/usr/bin`，XNU makefile 从这里调用它们。Mach-O 静态库、libdispatch 和 BlocksRuntime 保存在工具链前缀下。编译 Clang 占用主要安装时间。userdata 步骤可在 Linux 上运行；`--skip-setup` 和 `seed-data-grow` 需要 macOS。
 
 ## 外部输入
 
@@ -85,12 +92,16 @@ sudo scripts/linux/setup-toolchain.py --package-manager none --llvm-config /path
 
 ### 目标 IPSW
 
-sheng 板级文件仍以 iPadOS 17.7.11 为默认目标。iPhone X iOS 16.7.16 镜像是第二个目标，不替换默认。
+OS 配置的目标可以是 iOS 或 iPadOS 恢复镜像，镜像类别须与设备身份一致（[MobileGestalt](/zh/guide/mobilegestalt#ipados-与-ios)）。arm64 目标为 iOS 16 和 iPadOS 17，arm64e 目标为 iOS 27 和 iPadOS 27。
 
-| 目标 | 版本 | Build | 恢复镜像 |
-| --- | --- | --- | --- |
-| iPadOS，sheng 默认 | 17.7.11 | 21H461 | [iPad_Pro_HFR_17.7.11_21H461_Restore.ipsw](https://updates.cdn-apple.com/2025SpringFCS/fullrestores/122-77166/DCA6CFE8-90E9-4B92-880D-3DE171798E40/iPad_Pro_HFR_17.7.11_21H461_Restore.ipsw) |
-| iOS，iPhone X | 16.7.16 | 20H392 | [iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw](https://updates.cdn-apple.com/2025FallFCS/fullrestores/122-77006/1158E502-D76D-4226-AA06-ED5E30CD1111/iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw) |
+| 架构 | 目标 | 版本 | Build | 恢复镜像 |
+| --- | --- | --- | --- | --- |
+| arm64 | iOS，iPhone X（iPhone10,3、iPhone10,6） | 16.7.16 | 20H392 | [iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw](https://updates.cdn-apple.com/2025FallFCS/fullrestores/122-77006/1158E502-D76D-4226-AA06-ED5E30CD1111/iPhone10,3,iPhone10,6_16.7.16_20H392_Restore.ipsw) |
+| arm64 | iPadOS，iPad Pro 12.9 英寸第二代（iPad7,1） | 17.7.11 | 21H461 | [iPad_Pro_HFR_17.7.11_21H461_Restore.ipsw](https://updates.cdn-apple.com/2025SpringFCS/fullrestores/122-77166/DCA6CFE8-90E9-4B92-880D-3DE171798E40/iPad_Pro_HFR_17.7.11_21H461_Restore.ipsw) |
+| arm64e | iOS，iPhone 16 Pro（iPhone17,1） | 27.0.1 | 24A446 | [iPhone17,1_27.0.1_24A446_Restore.ipsw](https://updates.cdn-apple.com/2026FallFCS/59ffd938-75b6-41e5-af04-f4295ee8aeb3/iPhone17,1_27.0.1_24A446_Restore.ipsw) |
+| arm64e | iPadOS，iPad Pro M5（iPad17,1 至 iPad17,4） | 27.0.1 | 24A446 | [iPad17,1,iPad17,2,iPad17,3,iPad17,4_27.0.1_24A446_Restore.ipsw](https://updates.cdn-apple.com/2026FallFCS/6074e110-d48d-40c2-b0e8-b611520941a3/iPad17,1,iPad17,2,iPad17,3,iPad17,4_27.0.1_24A446_Restore.ipsw) |
+
+iOS 16 与 iPadOS 17 都是 arm64 镜像，共用 arm64 补丁系列（`profiles/arch/arm64`），对其中一个的修复同样适用于另一个。链接来自 [ipsw.me](https://ipsw.me)，指向 Apple 服务器。
 
 设备仓库的 `[ipsw] url` 是默认来源，`--ipsw` 或 `UNIXNU_IPSW` 覆盖它。镜像下载到仓库外。
 
@@ -112,4 +123,4 @@ sheng 板级文件仍以 iPadOS 17.7.11 为默认目标。iPhone X iOS 16.7.16 �
 - [设备仓库](/zh/porting/device-repository)介绍板级文件。
 - [设备](/zh/devices/)列出设备仓库和各自的输入。
 
-开始 sheng 完整构建前，核对 [ABI、SDK、固件和镜像输入清单](/zh/porting/migration#build-inputs)。
+完整构建前，核对 [ABI、SDK、固件和镜像输入清单](/zh/porting/migration#build-inputs)。

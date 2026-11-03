@@ -1,6 +1,19 @@
 # 调试与日志
 
-bring-up 需要四类证据：串口输出、屏幕诊断页、panic 屏幕和构建报告。把它们一起收集。
+为每个启动检查点收集固件日志、内核输出、诊断截图和构建报告。
+
+## 操作步骤 {#procedure}
+
+1. 记录失败命令或最后完成的[启动检查点](/zh/porting/bring-up)，以及设备、固件和镜像版本。
+2. 选择可用的[日志来源](#日志来源)。使用 USB 终端前确认设备实现了其[通信协议](#设备兼容性)；也可使用目标支持的 UART、屏幕诊断或 QEMU 日志。
+3. 绿色交接条按[入口探针步骤](#green-bar)检查；panic 抓取 [panic 屏幕](#panic-屏幕)，用户进程故障收集[用户态证据](#用户态故障证据)。
+4. 每次应用一项诊断修改，重新构建受影响的产物。启动参数修改需要 `./unixnu payload` 和 `./unixnu bootimg`。重复失败操作，记录最后确认的检查点。
+5. 保存[证据包](#证据包)，更新对应[适配记录](/zh/porting/records)。结果应明确失败阶段、输入版本和具体错误。
+
+## 按阶段抓取日志
+
+按[日志抓取与自动测试步骤](/zh/porting/log-capture)操作：固件菜单中使用二维码导出，
+内核入口使用 UART 或屏幕诊断，存储完成后加入持久化日志和自动循环。
 
 ## USB 调试终端
 
@@ -54,6 +67,8 @@ python -m unittest discover -s tests/terminal -v
 
 | 来源 | 通道 | 用途 |
 | --- | --- | --- |
+| [固件日志导出](/zh/porting/log-capture#qr-logs) | OneSend 二维码 | 当前 UEFI Advanced Logger 缓冲 |
+| [持久化日志](/zh/porting/log-capture#persistent-logs) | 预留存储区域、Linux 读取器或 recovery 读取器 | 内核消息与诊断快照 |
 | UEFI 串口 | UART | 固件、UniXNU、DarwinBoot |
 | 内核串口 | 由 `serial=` 选择的 UART | XNU 控制台和 panic 输出 |
 | 诊断页 | framebuffer | 控制台停止后的实时状态 |
@@ -372,4 +387,6 @@ jq . out/<device>/<os_profile>/<config>/boot/boot.json
 - [启动参数](/zh/xnu/boot-arguments)
 - [故障排查](/zh/reference/troubleshooting)
 - [QEMU 测试](/zh/reference/qemu)
-- [sheng 设备页](/zh/devices/sheng)
+- [参考设备记录](/zh/devices/sheng)
+
+panic 显示器在本轮内核清零的 BSS 中记录首次 panic。热重启可以保留显存内容，旧画面不影响新一轮显示和导出 panic。2,048 字节 panic 文本缓冲区的最后一个字节用于记录该状态。

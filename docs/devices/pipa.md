@@ -1,16 +1,23 @@
 # Xiaomi Pad 6 (pipa)
 
-pipa is the Xiaomi Pad 6 with the SM8250 SoC. The port below is an independent community project. The UniXNU organization does not maintain it. The firmware is [uefi-pipa](https://github.com/xVanTuring/uefi-pipa), a fork of uefi-sheng.
+A community-maintained port for SM8250. Current results are based on the maintainer records at the revisions linked below.
 
-| Repository | Maintainer | State |
-| --- | --- | --- |
-| [UniXNU-pipa](https://github.com/xVanTuring/UniXNU-pipa) | [xVanTuring](https://github.com/xVanTuring) | Board and userdata values measured; not run on the tablet |
-| [uefi-pipa](https://github.com/xVanTuring/uefi-pipa) | [xVanTuring](https://github.com/xVanTuring) | UEFI port, not run on hardware |
+| Repository | Maintainer |
+| --- | --- |
+| [uefi-pipa](https://github.com/xVanTuring/uefi-pipa) | [xVanTuring](https://github.com/xVanTuring) |
+| [UniXNU-pipa](https://github.com/xVanTuring/UniXNU-pipa) | [xVanTuring](https://github.com/xVanTuring) |
 
 ## State
 
-The device repository is laid out like sheng. Static checks pass and every hardware value cites a public source. The memory banks, userdata geometry and hardware values were read from the tablet. Nothing has run on a pipa. The README documents stage 1 to 3 (firmware, menu, payload volume) and stage 4 to 5 (kernel entry). A storage driver is not present, so the kernel stops at the root device.
+The tablet runs UEFI, the UniXNU menu, DarwinBoot and XNU. The current run stops at `Failed to mount root device @IOKitBSDInit.cpp:984`. Storage-driver integration is the next step. Board memory and userdata geometry are recorded in the device repository.
 
-## Maintenance
+## Sources
 
-The maintainer owns the repositories and their release decisions. UniXNU documentation lists the port and its state; it does not take over maintenance.
+- [README: xVanTuring/UniXNU-pipa](https://github.com/xVanTuring/UniXNU-pipa/blob/c28476ea5d3c66fb634152ea7cd0f5ddc7a63233/README.md)
+
+## Use this port
+
+1. Read the repository build instructions and pinned records. Prepare its firmware, system images and board inputs.
+2. Build with that repository's commands. Use [Build and boot](/building) for common configuration.
+3. Follow the [bring-up order](/porting/bring-up) and save results through [log capture](/porting/log-capture).
+4. Update the [porting record](/porting/records) with the source revisions and last confirmed stage.

@@ -4,6 +4,14 @@ The UEFI firmware port comes from Mu-Silicium. It supplies the services UniXNU a
 
 For repeated builds, save paths in [unixnu.local.toml](/reference/configuration#local-build-inputs). After changing boot arguments, rebuild the payload and boot image using the [argument workflow](/xnu/boot-arguments#apply-arguments). Follow the [green-bar diagnosis](/guide/debugging#green-bar) for a stall at loader handoff.
 
+## Procedure {#procedure}
+
+1. Prepare the device's Mu-Silicium checkout, [vendor inputs](#vendor-inputs) and submodules. Match `board.toml` to its [device configuration](#device-configuration), DSC and FD path.
+2. Complete [required integration](#required-integration): add each module to the DSC/FDF and map its libraries. The payload needs its RAM-disk, DiskIo and FAT drivers.
+3. Save the firmware path in local build configuration and run the [firmware build](#build). Confirm the output FD path and size.
+4. Build the payload, then follow [boot-image integration](#boot-image-integration). Check `boot/boot.json` and the packaged payload before booting.
+5. On the device, confirm the configured menu entry and DarwinBoot handoff using [verification](#verification). If the entry is absent, work through [payload discovery](#payload-discovery).
+
 ## Required integration
 
 Build firmware from the UniXNU checkout after selecting the device:
@@ -31,7 +39,7 @@ HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
 FdtLib|MdePkg/Library/BaseFdtLib/BaseFdtLib.inf
 ```
 
-Add `PartitionDxe` when the payload uses a partition table. The FAT driver also needs the platform's Unicode collation service. sheng's `Include/DXE.inc` contains these dependencies.
+Add `PartitionDxe` when the payload uses a partition table. The FAT driver also needs the platform's Unicode collation service. The reference firmware's `Include/DXE.inc` contains these dependencies.
 
 `UniXNURamDiskDxe` is shared by devices using Mu-Silicium's FDT handoff. Its source is in UniXNU's `package/UniXNUPkg/Driver/UniXNURamDiskDxe/`. Board memory reservations and memory expansion remain in the firmware platform.
 
@@ -45,6 +53,13 @@ Build the payload with the selected device's inputs, then pack the image:
 ```
 
 Use the options required by the device's payload profile. See [payload inputs](/concepts/payload).
+
+## Firmware logs
+
+Follow [log exporter integration](/porting/log-capture#firmware-setup) to add
+Advanced Logger and `AdvancedLogDxe`, then enable the Tools menu. Use
+[QR capture](/porting/log-capture#qr-logs) to save firmware output before storage
+adaptation and kernel handoff.
 
 ## Payload discovery
 

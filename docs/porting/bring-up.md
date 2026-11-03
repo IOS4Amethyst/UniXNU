@@ -43,6 +43,10 @@ Minimal test: an empty ramdisk. UniXNU falls back to its built-in configuration 
 ./unixnu bootimg --uefi /path/to/Mu-Silicium --dtb board.dtb --ramdisk none
 ```
 
+Before continuing, [scan the firmware log](/porting/log-capture#qr-logs) from
+**Tools → Advanced Logger**. Prepare the platform logger and plugin with the
+[integration steps](/porting/log-capture#firmware-setup).
+
 ## Stage 3: Payload
 
 Goal: UniXNU reads `unixnu.toml` and the payload files.
@@ -97,6 +101,10 @@ Checks:
 - The kernel mounts the root and starts `launchd`.
 
 A root match failure leaves the kernel without a root device. Check the UUID, the window offsets and the partition capacity.
+
+Once storage works, [adapt persistent capture](/porting/log-capture#persistent-logs)
+with a kernel writer and a Linux or recovery reader. Complete one manual retrieval before
+enabling timed reset and the automated cycle.
 
 ## Stage 7: Userland
 

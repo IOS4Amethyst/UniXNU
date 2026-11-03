@@ -5,8 +5,32 @@ Start with the storage section of the device's `porting.toml` and the
 [ShengUfs](/drivers/sheng-ufs), with runtime class `NativeUfs`.
 
 ShengUfs combines SM8550 controller access, firmware adoption, SMMU handling,
-GPT/window parsing and sheng persistence policy. Its hardware constants and
+GPT/window parsing and board persistence policy. Its hardware constants and
 board policy require review for each target.
+
+Use [driver build integration](/porting/drivers#build-integration) to connect
+initialization, archive recipes and the OS ABI, then run this page's hardware checks.
+
+## Sources and interfaces {#source-map}
+
+These links identify reviewed source revisions. Match interfaces to the selected
+SoC, component and OS versions. The linked device sources provide board integration
+examples.
+
+| Implementation | Source | What to read and implement |
+| --- | --- | --- |
+| Controller and DMA | [NativeUfs.cpp](https://github.com/UniXNU/ShengUfs/blob/e2b32cc429e8cf1501161c1d8c517f8994ceb9b2/NativeUfs.cpp), [SmmuTakeover.h](https://github.com/UniXNU/ShengUfs/blob/e2b32cc429e8cf1501161c1d8c517f8994ceb9b2/SmmuTakeover.h) | Request-list ownership, mappings and context takeover |
+| Command completion | [RootCommands.h](https://github.com/UniXNU/ShengUfs/blob/e2b32cc429e8cf1501161c1d8c517f8994ceb9b2/RootCommands.h#L33) | `hostSubmit`: descriptors, doorbell, timeout, OCS, response and SCSI status |
+| Storage policy | [RootLayout.h](https://github.com/UniXNU/ShengUfs/blob/e2b32cc429e8cf1501161c1d8c517f8994ceb9b2/RootLayout.h), [RootPublication.h](https://github.com/UniXNU/ShengUfs/blob/e2b32cc429e8cf1501161c1d8c517f8994ceb9b2/RootPublication.h) | GPT/window bounds and root IOMedia publication |
+| Clock state | [GccUfs.h](https://github.com/UniXNU/ShengUfs/blob/e2b32cc429e8cf1501161c1d8c517f8994ceb9b2/GccUfs.h) | Branch enable and hardware-gating interpretation |
+
+## Procedure {#procedure}
+
+1. Fill the [hardware inventory](#hardware-inventory) from target sources. Resolve controller, PHY, clocks, resets, SMMU and DMA ownership before programming them.
+2. Implement or adapt the [initialization sequence](#initialization-and-ownership). Check the [recorded findings](#findings-to-reuse) against the target controller and firmware state.
+3. Add the matching component, archive recipe, kernel flags and root settings using [Configuration](#configuration). Build the selected kernel with the matching storage ABI inputs.
+4. Verify the [milestones](#completion-criteria) in order: register access, DMA, command completion, known-block reads, root mount, then persistence. Record the result of each completed milestone.
+5. Update the storage area of `porting.toml`, run its checker, and continue with [display and brightness](/porting/display).
 
 ## Hardware inventory
 
@@ -28,7 +52,7 @@ policy in the device repository. Describe register widths, parent address cells,
 `ranges`, interrupt providers and IOMMU references using the
 [device-tree bindings](/porting/device-tree).
 
-For sheng, the SoC DTSI exports host `0x01d84000/0x3000` and PHY
+The SM8550 reference DTSI exports host `0x01d84000/0x3000` and PHY
 `0x01d80000/0x2000`. GCC at `0x00100000` and apps-SMMU handling for stream
 `0x60` are implemented in ShengUfs. The current driver reads those resources
 through its C++ constants and operations. Converting a resource to a DTS property
@@ -59,15 +83,19 @@ clock and power sequence implemented and recorded.
   conversions tied to the observed logical block size. See `RootLayout.h`.
 - Root reads, persistent Data writes and reset handling have separate completion
   criteria. Record the allocation and recovery method for each write exercise.
+- The driver that takes over the apps SMMU also owns any stage 1 window another
+  device needs. ShengUfs sets one up for the display bank (`sheng-dpu-scanout`)
+  and one for the WiFi endpoint (`sheng-wifi=2` or more); both are off by default.
+  Audio streams stay in pass-through: a translating context resets the reference board.
 
-The [sheng storage record](/devices/sheng#storage) supplies board values,
+The [reference storage record](/devices/sheng#storage) supplies board values,
 implementation references and current limits.
 
 ## Configuration
 
 Select the matching storage component in the complete `[components] include`
 array. Add its recipe at the required position in `[kernel] archives`. Arrays
-replace inherited arrays. The sheng selection includes:
+replace inherited arrays. A reference selection includes:
 
 ```toml
 # Entries within the complete device selections:
@@ -75,21 +103,14 @@ replace inherited arrays. The sheng selection includes:
 # [kernel] archives: "component:ShengUfs"
 
 [userdata]
-first_lba = 3094592
-last_lba = 64007162
-lba_bytes = 4096
-windows = [
-  { name = "OS", component = "OS" },
-  { name = "SystemOS", component = "Cryptex1,SystemOS" },
-]
+# Set first_lba, last_lba and lba_bytes from the target GPT.
 
 [payload.adt]
-root_match_volume_uuid = "04769D26-2CA0-4825-B443-E2E5F88300F2"
+# Set root_match_volume_uuid from the selected APFS volume.
 ```
 
-These values describe sheng. Obtain another board's geometry from its GPT and
-its root UUID from the selected volume. Preserve other required `payload.adt`
-fields. Enable `CONFIG_XNU_NATIVE_UFS=y` in the selected defconfig and include
+Obtain the target geometry from its GPT and the root UUID from the selected volume.
+Preserve other required `payload.adt` fields. Enable `CONFIG_XNU_NATIVE_UFS=y` in the selected defconfig and include
 `native-ufs-root=1` in the complete kernel argument array for this runtime.
 
 The component source is pinned in the device repository. Shared build tools
@@ -111,12 +132,14 @@ Update the storage record at each milestone. Keep source, host and device
 results at their corresponding [completion levels](/porting/records#completion-levels).
 
 ```sh
-./unixnu defconfig sheng_defconfig -D ../UniXNU-sheng
-./unixnu status --json -D ../UniXNU-sheng
-./unixnu build kernel -D ../UniXNU-sheng
-python3 scripts/porting-record.py check --device ../UniXNU-sheng
+./unixnu defconfig myboard_defconfig -D /path/to/device
+./unixnu status --json -D /path/to/device
+./unixnu build kernel -D /path/to/device
+python3 scripts/porting-record.py check --device /path/to/device
 ```
 
 ## Next step
 
 [Adapt display and brightness](/porting/display) after the root path is ready. The [driver checklist](/porting/drivers) covers the remaining subsystems.
+
+For the arm64e public-source build path and its current linking/runtime limits, see [public-source driver builds](/porting/migration#source-drivers). Historical iOS 17 device results do not qualify this path.

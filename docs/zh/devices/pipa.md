@@ -1,16 +1,23 @@
 # 小米平板 6（pipa）
 
-pipa 是搭载 SM8250 的小米平板 6。下面的移植是独立的社区项目，UniXNU 组织不维护它。固件是 [uefi-pipa](https://github.com/xVanTuring/uefi-pipa)，uefi-sheng 的分支。
+搭载 SM8250 的社区设备移植。当前状态依据下方固定版本的维护者记录。
 
-| 仓库 | 维护者 | 状态 |
-| --- | --- | --- |
-| [UniXNU-pipa](https://github.com/xVanTuring/UniXNU-pipa) | [xVanTuring](https://github.com/xVanTuring) | 已读取板级和 userdata 数值，未在平板运行 |
-| [uefi-pipa](https://github.com/xVanTuring/uefi-pipa) | [xVanTuring](https://github.com/xVanTuring) | UEFI 移植，未在真机运行 |
+| 仓库 | 维护者 |
+| --- | --- |
+| [uefi-pipa](https://github.com/xVanTuring/uefi-pipa) | [xVanTuring](https://github.com/xVanTuring) |
+| [UniXNU-pipa](https://github.com/xVanTuring/UniXNU-pipa) | [xVanTuring](https://github.com/xVanTuring) |
 
-## 状态
+## 当前状态
 
-设备仓库采用 sheng 布局。静态检查通过，每个硬件数值都标注公开来源。内存分区、userdata 几何和硬件数值已从平板读取。尚未在 pipa 上运行。README 记录了阶段 1 到 3（固件、菜单、负载卷）和阶段 4 到 5（内核入口）。当前没有存储驱动，内核停在根设备。
+平板已运行 UEFI、UniXNU 菜单、DarwinBoot 和 XNU。当前运行停止于 `Failed to mount root device @IOKitBSDInit.cpp:984`，下一步是集成存储驱动。设备仓库记录了内存和 userdata 几何参数。
 
-## 维护
+## 来源
 
-维护者拥有仓库和发布决定。UniXNU 文档记录移植及其状态，不接管维护。
+- [README: xVanTuring/UniXNU-pipa](https://github.com/xVanTuring/UniXNU-pipa/blob/c28476ea5d3c66fb634152ea7cd0f5ddc7a63233/README.md)
+
+## 使用此移植
+
+1. 阅读上方仓库的构建说明和固定版本记录，准备对应的固件、系统镜像和板级输入。
+2. 按该仓库的命令构建，通用配置见[构建与启动](/zh/building)。
+3. 按[启动验证顺序](/zh/porting/bring-up)逐项验证，通过[日志抓取](/zh/porting/log-capture)保存结果。
+4. 更新[移植记录](/zh/porting/records)，记录实际使用的源码版本及最后确认的阶段。

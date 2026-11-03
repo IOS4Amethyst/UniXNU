@@ -4,30 +4,45 @@ Complete [display geometry](/porting/display) and [interrupt/DMA setup](/porting
 Record touch-controller model, firmware, matrix geometry, physical orientation,
 bus wiring, reset/IRQ pins and the OS HID ABI.
 
+Use [driver build integration](/porting/drivers#build-integration) to connect
+initialization, archive recipes and the OS ABI, then run this page's hardware checks.
+
+## Sources and interfaces {#source-map}
+
+These links identify reviewed source revisions. Match interfaces to the selected
+SoC, component and OS versions. The linked device sources provide board integration
+examples.
+
+| Implementation | Source | What to read and implement |
+| --- | --- | --- |
+| Bus and sensor | [GeniSpi.h](https://github.com/UniXNU/QcomGeniSpi/blob/eac47baefe6a5d2368a70351e6ad1b6361bedbe2/GeniSpi.h), [NvtProtocol.h](https://github.com/UniXNU/ShengNovatekTouch/blob/a1a6f2b1912b3cde2dcbe96439e5833b9ab250f4/NvtProtocol.h#L24) | `nvt_bus`, chip identification, firmware download and frame reads |
+| Contact processing | [NvtTouchCore.c](https://github.com/UniXNU/ShengNovatekTouch/blob/a1a6f2b1912b3cde2dcbe96439e5833b9ab250f4/NvtTouchCore.c) | Matrix processing and contact tracking for the supported sensor |
+| Board integration | [TouchBoard.h](https://github.com/UniXNU/UniXNU-sheng/blob/516a780473a2ac59c8b438e132bb60204dda9e22/package/TouchBoard.h), [TouchProbe.cpp](https://github.com/UniXNU/UniXNU-sheng/blob/516a780473a2ac59c8b438e132bb60204dda9e22/package/TouchProbe.cpp) | Power/reset, transport callbacks, interrupt handling and coordinates |
+| OS reports | [NativeHidInput.cpp](https://github.com/UniXNU/ShengHidInput/blob/5f3a37cec0c3fc4234b10726b25489a55f0d77ef/NativeHidInput.cpp#L125), [ButtonProbe.cpp](https://github.com/UniXNU/UniXNU-sheng/blob/516a780473a2ac59c8b438e132bb60204dda9e22/package/ButtonProbe.cpp) | `IOHIDDevice`, report descriptors, coherent contact snapshots and button events |
+
 ## 1. Select the transport and sensor protocol
 
 Read [QcomGeniSpi](/drivers/qcom-geni-spi),
 [ShengNovatekTouch](/drivers/sheng-novatek-touch) and
 [ShengHidInput](/drivers/sheng-hid-input). Their responsibilities are:
 
-| Source | Input to adapt |
-| --- | --- |
-| `QcomGeniSpi/GeniSpi.c` | GENI engine access and SPI transfer setup |
-| `ShengNovatekTouch/NvtProtocol.c` | Supported chip map, firmware format and report protocol |
-| `ShengNovatekTouch/NvtTouchCore.c` | Sensor matrix, filtering and contact tracking |
-| sheng `package/TouchBoard.h` | Controller windows, GPIOs, clock votes and SMMU stream |
-| sheng `package/TouchProbe.cpp` | Resource ownership, firmware loading, frame loop and coordinates |
-| `ShengHidInput/NativeHidInput.cpp` | Contacts/buttons to IOHIDFamily reports |
 
 For a different sensor, implement its identification, firmware and report
 protocol. For a different bus controller, implement the transfer/delay callbacks
 used by `nvt_bus` when reusing the Novatek protocol.
 
+Implement `nvt_bus.xfer` as one full-duplex transfer with chip select held
+throughout. Supply caller-owned buffers and the delay callback from `NvtProtocol.h`.
+Call `nvt_identify`, `nvt_fw_parse`, `nvt_download_firmware` and `nvt_read_frame`
+in that order, checking each return code. On download failure, preserve stage,
+CRC and SRAM-readback diagnostics before retrying. Publish decoded coordinates,
+IDs and contact count as one coherent frame for the HID consumer.
+
 ## 2. Adapt the board path
 
-1. Replace `TouchBoard.h` inputs from the target DTS and clock/pin definitions.
-   sheng uses QUP wrapper `0xac0000`, engine `0xa90000`, SPI mode 0 up to
-   19.2 MHz, GPIOs 44 through 47 for SPI, IRQ GPIO 25 and SMMU stream `0xa3`.
+1. Define the target's controller windows, bus mode/rate, GPIOs, interrupt and
+   SMMU stream from its DTS and clock/pin definitions. `TouchBoard.h` is a board
+   data-layout reference.
 2. Implement power/reset ownership and verify engine firmware, pins and clocks.
 3. Set DMA addressing and cache maintenance for the target SMMU context.
 4. Read the chip ID, then load its firmware and check the returned geometry.
@@ -38,7 +53,7 @@ The Novatek processing core uses a 40 × 60 matrix. Verify geometry and bounds
 when adapting its firmware or processing core. Firmware extraction is owned by
 the device's `scripts/gen-touch-firmware.py` and proprietary-file inventory.
 
-sheng's `sheng-touch=1`, `2`, `3` and `4` select resource inspection, clocks/pins,
+The reference probe arguments `sheng-touch=1`, `2`, `3` and `4` select resource inspection, clocks/pins,
 controller identification, then firmware/scanning. Use those stages only after
 adapting the hardware values consumed by that stage.
 
@@ -49,13 +64,13 @@ preserve snapshot consistency when replacing the producer.
 ## 3. Publish HID reports
 
 Qualify IOHIDFamily methods and object layouts against the selected kernelcache.
-The sheng archive recipe uses a prelinked candidate and ABI records; see
+The reference archive recipe uses a prelinked candidate and ABI records; see
 [build inputs](/porting/migration#build-inputs). Adapt the report descriptor,
 logical coordinate ranges and contact limits to the sensor.
 
 Select the sensor, transport and HID components in the complete component list.
-The sheng display recipe links the sensor and bus objects; its HID recipe binds
-the OS interface. `sheng-touch-hid=1` enables sheng's touch publication path.
+The reference display recipe links the sensor and bus objects; its HID recipe binds
+the OS interface. `sheng-touch-hid=1` enables its touch publication path.
 From the assembled target tree, inspect their integration:
 
 ```sh
@@ -68,14 +83,13 @@ contact, and UI gestures follow the panel orientation.
 
 ## 4. Adapt physical buttons
 
-Read sheng's [ButtonProbe.cpp](https://github.com/UniXNU/UniXNU-sheng/blob/main/package/ButtonProbe.cpp).
-Its power and volume-down buttons use PMK8550 PON/RESIN; volume-up uses PM8550
-GPIO 6. The SPMI arbiter routes the interrupt through PDC to GIC SPI 481.
+Use `ButtonProbe.cpp` in the [source map](#source-map) as a reference for
+interrupt sampling and HID button events.
 
 Map the target's GPIO or PMIC inputs, polarity, ownership, interrupt routing and
 acknowledgement. Access only the PMIC peripherals owned by the selected execution
 environment. Adapt `BootResetCore.h` helpers where the SPMI controller differs.
-Connect press/release state to the HID consumer report. sheng uses report 2 bits
+Connect press/release state to the HID consumer report. The reference uses report 2 bits
 for Power, Volume Increment and Volume Decrement and enables this with
 `sheng-buttons=1`.
 
@@ -86,3 +100,5 @@ including held and simultaneous buttons, with bounded interrupt activity.
 
 Rebuild through [Building](/building), record touch and buttons separately, then
 continue with [GPU adaptation](/porting/gpu).
+
+For the arm64e public-source build path and its current linking/runtime limits, see [public-source driver builds](/porting/migration#source-drivers). Historical iOS 17 device results do not qualify this path.

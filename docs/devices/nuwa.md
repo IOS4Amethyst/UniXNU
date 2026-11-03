@@ -1,27 +1,26 @@
 # Xiaomi 13 Pro (nuwa)
 
-nuwa is the Xiaomi 13 Pro with the SM8550 SoC and 12 GB of RAM. The port below is an independent community project. The UniXNU organization does not maintain it. The target is iOS 16 with the iPhone10,3 / d22ap identity.
+A community-maintained port for SM8550. Current results are based on the maintainer records at the revisions linked below.
 
-| Repository | Maintainer | State |
-| --- | --- | --- |
-| [UniXNU-nuwa](https://github.com/wh1stl3/UniXNU-nuwa) | [wh1stl3](https://github.com/wh1stl3) | Source kernel builds and links; platform archives, prelink and hardware not done |
-| [uefi-nuwa](https://github.com/wh1stl3/uefi-nuwa) | [wh1stl3](https://github.com/wh1stl3) | Firmware source; hardware bring-up unverified |
-| [nuwa-dev](https://github.com/Alex-Enix/nuwa-dev) | [Alex-Enix](https://github.com/Alex-Enix) | Alternate nuwa device repository |
+| Repository | Maintainer |
+| --- | --- |
+| [UniXNU-nuwa](https://github.com/wh1stl3/UniXNU-nuwa) | [wh1stl3](https://github.com/wh1stl3) |
+| [uefi-nuwa](https://github.com/wh1stl3/uefi-nuwa) | [wh1stl3](https://github.com/wh1stl3) |
+| [nuwa-dev](https://github.com/Alex-Enix/nuwa-dev) | [Alex-Enix](https://github.com/Alex-Enix) |
 
 ## State
 
-| Layer | State |
-| --- | --- |
-| Source kernel | xnu 8796.141.3 builds and links in CI; ARM64 `MH_EXECUTE`, Darwin 22.6.0, no unresolved symbols |
-| Platform archives | not passing; `ArmCpu` includes and the Darwin 22 archive build are still in progress |
-| Donor interface | 65,348 pointer bindings checked; the source kernel misses the APFS `_vfs_getvfs_with_vfsops` binding |
-| VFS bridge | static checks pass; the actual compile is pending |
-| Firmware | `uefi-nuwa` builds and records SEC boundary diagnostics; hardware not verified |
-| Prelink, QEMU and hardware | not run |
-| Board file | `example = true`; the nuwa platform values are not established |
+The source kernel builds, and a temporary hardware boot records `AppleARMPlatform: IODTNVRAM`. The device reboots after about 235 seconds; the cause remains undetermined. Userland startup requires further evidence.
 
-`docs/STATUS.md` in the repository is the current source of truth.
+The board still carries `example = true`. Complete and qualify its platform inputs before using the full build workflow.
 
-## Maintenance
+## Sources
 
-The maintainer owns the repository and its release decisions. UniXNU documentation lists the port and its state; it does not take over maintenance.
+- [README: wh1stl3/UniXNU-nuwa](https://github.com/wh1stl3/UniXNU-nuwa/blob/54b3674b8ad95ebf00d64e6cbf227391a56f180c/README.md)
+
+## Use this port
+
+1. Read the repository build instructions and pinned records. Prepare its firmware, system images and board inputs.
+2. Build with that repository's commands. Use [Build and boot](/building) for common configuration.
+3. Follow the [bring-up order](/porting/bring-up) and save results through [log capture](/porting/log-capture).
+4. Update the [porting record](/porting/records) with the source revisions and last confirmed stage.

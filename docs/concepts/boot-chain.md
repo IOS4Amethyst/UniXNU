@@ -1,6 +1,6 @@
 # Boot chain
 
-The boot chain has four handoffs. Each handoff has a fixed input, a validation step and a failure mode that returns to the previous stage.
+UniXNU is a general UEFI environment and driver loading system, similar to OpenCore: a common UEFI layer loads the drivers a device selects, then boots the OS. The boot chain has four handoffs. Each handoff has a fixed input, a validation step and a failure mode that returns to the previous stage.
 
 ## 1. Bootloader to BootShim
 

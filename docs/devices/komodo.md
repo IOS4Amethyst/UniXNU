@@ -1,15 +1,22 @@
 # Google Pixel 9 Pro XL (komodo)
 
-Google Pixel 9 Pro XL (komodo) is a Tensor G4 device. The port below is an independent community project. The UniXNU organization does not maintain it.
+A community-maintained port for Tensor G4. Current results are based on the maintainer records at the revisions linked below.
 
-| Repository | Maintainer | State |
-| --- | --- | --- |
+| Repository | Maintainer |
+| --- | --- |
 | [UniXNU-komodo](https://github.com/Trijal08/UniXNU-komodo) | [Trijal08](https://github.com/Trijal08) |
 
 ## State
 
-The repository has the board file, defconfig and ADT generator. The UEFI port is a separate Mu-Silicium repository. No hardware run is documented.
+Hardware tests reach the firmware menu, test payload and entry probes using a prebuilt uke XNU image. The post-MMU reset probe is recorded. Native Tensor platform support and root integration remain pending.
 
-## Maintenance
+## Sources
 
-The maintainer owns the repository and its release decisions. UniXNU documentation lists the port and its state; it does not take over maintenance.
+- [Board configuration: Trijal08/UniXNU-komodo](https://github.com/Trijal08/UniXNU-komodo/blob/5a4cfddef602f11c1e5a1836a089e83f1794504c/board.toml)
+
+## Use this port
+
+1. Read the repository build instructions and pinned records. Prepare its firmware, system images and board inputs.
+2. Build with that repository's commands. Use [Build and boot](/building) for common configuration.
+3. Follow the [bring-up order](/porting/bring-up) and save results through [log capture](/porting/log-capture).
+4. Update the [porting record](/porting/records) with the source revisions and last confirmed stage.

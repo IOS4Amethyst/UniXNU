@@ -1,4 +1,4 @@
-# 构建
+# 构建与启动
 
 `unixnu` 解析 ARM64、SoC、OS 和设备配置，选择组件依赖并组装目标树。格式 2 输出位于 `out/<device>/<os_profile>/<config>/`，格式 1 使用 `out/<board>/`。
 
@@ -9,20 +9,23 @@
 ## 1. 准备主机和仓库 {#quick-start}
 
 阅读[前置条件](/zh/guide/requirements)，从[设备列表](/zh/devices/)选择移植。
-新设备先按[移植流程](/zh/porting/)操作。获取设备和 UEFI 仓库及其 submodule。
-例如 sheng 使用：
+新设备先按[移植流程](/zh/porting/steps)操作。获取设备和 UEFI 仓库及其 submodule。
+设置目标移植的仓库地址与 defconfig：
 
 ```sh
+DEVICE_REPOSITORY=https://github.com/your-org/UniXNU-myboard
+UEFI_REPOSITORY=https://github.com/your-org/uefi-myboard
+DEFCONFIG=myboard_defconfig
 git clone --recurse-submodules https://github.com/UniXNU/UniXNU
-git clone --recurse-submodules https://github.com/UniXNU/UniXNU-sheng
-git clone --recurse-submodules https://github.com/UniXNU/uefi-sheng
+git clone --recurse-submodules "$DEVICE_REPOSITORY" UniXNU-device
+git clone --recurse-submodules "$UEFI_REPOSITORY" uefi-device
 cd UniXNU
-./unixnu defconfig sheng_defconfig -D ../UniXNU-sheng
+./unixnu defconfig "$DEFCONFIG" -D ../UniXNU-device
 ./unixnu fetch
 ./unixnu status --json
 ```
 
-替换为目标仓库和 defconfig 名称。`status` 显示最终 profile、版本、补丁顺序和输出目录。
+`status` 显示最终 profile、版本、补丁顺序和输出目录。
 `-D` 记录在 `out/state.json`，后续命令均在 UniXNU 主仓库执行。
 
 **预期结果：** 设备/配置选择正确，源码路径已解析。
@@ -35,7 +38,7 @@ cp unixnu.example.toml unixnu.local.toml
 
 按[本地构建配置](/zh/reference/configuration#local-build-inputs)填写设备和 UEFI 路径、
 固件 DTB、平台身份及所需 kernelcache、trust-cache 和 Data seed。
-遵循设备输入清单；[sheng 构建输入](/zh/porting/migration#build-inputs)列出其 SDK、固件和 ABI 要求。
+按设备输入清单与[构建输入检查表](/zh/porting/migration#build-inputs)准备 SDK、固件和 ABI 输入。
 
 ```sh
 ./unixnu ipsw info
@@ -106,7 +109,7 @@ cp unixnu.example.toml unixnu.local.toml
 
 CI 使用共享解析器读取最终配置和输出路径。
 
-内核、userdata 和 Data 种子步骤调用 Xcode、`hdiutil` 和 `diskutil`。fork 后可以在 GitHub 的 macOS runner 上运行这些步骤，不需要本地 Mac。workflow 是构建检查：只发布脱敏文本日志，不上传镜像。
+内核步骤在 macOS 上调用 Xcode，Data 种子步骤调用 `hdiutil` 和 `diskutil`。fork 后可以在 GitHub 的 macOS runner 上运行这些步骤，不需要本地 Mac。workflow 是构建检查：只发布脱敏文本日志，不上传镜像。
 
 1. fork 仓库并启用 Actions。
 2. 板级需要为负载提供平台种子时，添加仓库 secret `UNIXNU_UNIQUE_CHIP_ID`。
@@ -288,7 +291,7 @@ package 步骤用 EDK II 构建 `package/`，输出到 `out/<device>/<os_profile
 
 ### userdata
 
-userdata 步骤构建 `userdata` 分区的原始镜像，保存 IPSW 中未修改的 `OS` 和 `SystemOS` 磁盘镜像，前置 `SHNGROOT` manifest。磁盘镜像用 `hdiutil` 只读挂载。输出为 `out/<device>/<os_profile>/<config>/userdata/userdata-root.img` 和 `userdata-root.json`，报告会打印 `fastboot flash userdata` 命令。
+userdata 步骤构建 `userdata` 分区的原始镜像，保存 IPSW 中未修改的 `OS` 和 `SystemOS` 磁盘镜像，前置 `SHNGROOT` manifest。macOS 上磁盘镜像用 `hdiutil` 只读挂载；Linux 上由 `scripts/unixnu/udif.py` 解码，LZFSE 块用 `lzfse` 解压。两者得到相同的字节。输出为 `out/<device>/<os_profile>/<config>/userdata/userdata-root.img` 和 `userdata-root.json`，报告会打印 `fastboot flash userdata` 命令。
 
 ### bootimg
 

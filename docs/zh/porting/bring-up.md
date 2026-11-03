@@ -41,6 +41,9 @@ fastboot boot out/<device>/<os_profile>/<config>/boot/boot.img
 ./unixnu bootimg --uefi /path/to/Mu-Silicium --dtb board.dtb --ramdisk none
 ```
 
+继续前，按[二维码抓取步骤](/zh/porting/log-capture#qr-logs)从 **Tools → Advanced Logger**
+导出当前固件日志。先按[集成步骤](/zh/porting/log-capture#firmware-setup)准备平台日志模块和插件。
+
 ## 阶段 3：负载
 
 目标：UniXNU 读取 `unixnu.toml` 和负载文件。
@@ -95,6 +98,8 @@ fastboot boot out/<device>/<os_profile>/<config>/boot/boot.img
 - 内核挂载根卷并启动 `launchd`。
 
 根卷匹配失败时内核没有根设备。检查 UUID、窗口偏移和分区容量。
+
+存储可用后，按[持久化日志步骤](/zh/porting/log-capture#persistent-logs)接入写入器和 Linux 或 recovery 读取器，先手动取回一次日志，再启用定时重启和自动循环。
 
 ## 阶段 7：用户态
 

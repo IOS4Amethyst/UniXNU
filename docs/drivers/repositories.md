@@ -15,6 +15,7 @@ These repositories are maintained in the UniXNU organization.
 | RamBlock | [UniXNU/RamBlock](https://github.com/UniXNU/RamBlock) | XNU storage | [RamBlock](/drivers/ram-block) |
 | GopFramebuffer | [UniXNU/GopFramebuffer](https://github.com/UniXNU/GopFramebuffer) | XNU display | [GopFramebuffer](/drivers/gop-framebuffer) |
 | QcomGeniSpi | [UniXNU/QcomGeniSpi](https://github.com/UniXNU/QcomGeniSpi) | XNU SPI | [QcomGeniSpi](/drivers/qcom-geni-spi) |
+| QcomBaseband | [UniXNU/QcomBaseband](https://github.com/UniXNU/QcomBaseband) | XNU baseband | [QcomBaseband](/drivers/qcom-baseband) |
 | SoftwareAES | [UniXNU/SoftwareAES](https://github.com/UniXNU/SoftwareAES) | XNU crypto | [SoftwareAES](/drivers/software-aes) |
 | AppleKeyStoreState | [UniXNU/AppleKeyStoreState](https://github.com/UniXNU/AppleKeyStoreState) | XNU keystore | [AppleKeyStoreState](/drivers/apple-key-store-state) |
 | VirtioMmioBlock | [UniXNU/VirtioMmioBlock](https://github.com/UniXNU/VirtioMmioBlock) | XNU storage | [VirtioMmioBlock](/drivers/virtio-mmio-block) |
@@ -29,6 +30,7 @@ These repositories are maintained in the UniXNU organization.
 | AirNir | [UniXNU/AirNir](https://github.com/UniXNU/AirNir) | Compiler kit | [AirNir](/drivers/air-nir) |
 | AdrenoPM4 | [UniXNU/AdrenoPM4](https://github.com/UniXNU/AdrenoPM4) | GPU command kit | [AdrenoPM4](/drivers/adreno-pm4) |
 | AdrenoFirmware | [UniXNU/AdrenoFirmware](https://github.com/UniXNU/AdrenoFirmware) | GPU firmware kit | [AdrenoFirmware](/drivers/adreno-firmware) |
+| Sm8550Platform | [UniXNU/UniXNU-sm8550-common](https://github.com/UniXNU/UniXNU-sm8550-common) | SM8550 GPU platform kit | [Sm8550Platform](/drivers/sm8550-platform) |
 | DarwinBoot | [UniXNU/DarwinBoot](https://github.com/UniXNU/DarwinBoot) | UEFI loader | [DarwinBoot](/drivers/darwin-boot) |
 | VerifiedRoot | [UniXNU/VerifiedRoot](https://github.com/UniXNU/VerifiedRoot) | Root trust tooling | [VerifiedRoot](/drivers/verified-root) |
 | ShengPreflight | [UniXNU/ShengPreflight](https://github.com/UniXNU/ShengPreflight) | UEFI preflight | [ShengPreflight](/drivers/sheng-preflight) |

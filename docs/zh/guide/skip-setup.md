@@ -4,6 +4,13 @@
 
 全新的 Data 种子首次启动会进入 Setup。负载可以在写镜像前把 Setup 标记为完成，让设备直接进入 SpringBoard。
 
+## 操作步骤 {#procedure}
+
+1. 准备匹配的 Data seed、macOS 镜像工具和设备的 `skip_setup_tool`。核对[构建版本](#构建版本)和 [ADT 身份](#设备树)与所选 IPSW 一致。
+2. 需要调整 seed 大小时，先完成 [Data 卷准备](/zh/guide/userdata#data-卷)，记录所选 seed 路径。
+3. 执行[负载命令](#命令)，传入 `--skip-setup` 和设备必需输入。检查[输出](#输出)，`payload.json` 应包含 `"skip_setup": true`。
+4. 运行 `./unixnu bootimg`，启动新镜像并按[验证步骤](#验证)检查，记录 seed、镜像版本和观察到的用户态阶段。
+
 ## 命令
 
 ```sh
@@ -108,10 +115,10 @@ out/<device>/<os_profile>/<config>/payload/payload.json
 
 1. 用 `--skip-setup` 构建负载。
 2. 检查 `payload.json` 的 `"skip_setup": true`。
-3. 启动镜像。
+3. 运行 `./unixnu bootimg`，再启动新生成的镜像。
 4. 日志到达 SpringBoard，不再停留在 Setup 页面。
 
-参考实现是本仓库的 `scripts/seed-data-skip-setup.py`。sheng 移植记录了使用这些改动的首次硬件启动。
+参考实现是本仓库的 `scripts/seed-data-skip-setup.py`。
 
 ## 下一步
 

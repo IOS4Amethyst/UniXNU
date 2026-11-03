@@ -1,6 +1,20 @@
 # Debugging and logs
 
-A bring-up produces four kinds of evidence: serial output, the on-screen diagnostic page, the panic screen and build reports. Collect them together.
+Collect firmware logs, kernel output, diagnostic screenshots and build reports for each bring-up checkpoint.
+
+## Procedure {#procedure}
+
+1. Record the command that failed or the last completed [boot checkpoint](/porting/bring-up), plus the device, firmware and image revisions.
+2. Choose an available [log source](#log-sources). Use the USB terminal only with a board that implements its [device protocol](#device-compatibility); use UART, framebuffer diagnostics or QEMU logs as provided by the target.
+3. For a green handoff bar, follow [the entry-probe procedure](#green-bar). For a panic, capture the [panic screen](#panic-screen); for a user process fault, collect [user fault evidence](#user-fault-evidence).
+4. Apply one diagnostic change. Rebuild the affected artifact; boot-argument changes require `./unixnu payload` and `./unixnu bootimg`. Repeat the failing operation and record the last confirmed checkpoint.
+5. Save an [evidence bundle](#evidence-bundle) and update the affected [porting record](/porting/records). A useful result identifies the failing stage, input versions and exact error.
+
+## Capture by boot stage
+
+Follow [log capture and automated tests](/porting/log-capture): QR export from
+the firmware menu, UART or screen diagnostics at kernel entry, then persistent
+logs and automated cycles after storage works.
 
 ## USB debug terminal
 
@@ -54,6 +68,8 @@ The optional C-sender interoperability test needs `GIULIA_SCREEN_FIXTURE` pointi
 
 | Source | Transport | Use |
 | --- | --- | --- |
+| [Firmware log export](/porting/log-capture#qr-logs) | OneSend QR frames | Current UEFI Advanced Logger buffer |
+| [Persistent logs](/porting/log-capture#persistent-logs) | Reserved storage, Linux reader or recovery reader | Kernel messages and diagnostic snapshots |
 | UEFI serial | UART | Firmware, UniXNU and DarwinBoot |
 | Kernel serial | UART selected by `serial=` | XNU console and panic output |
 | Diagnostic page | Framebuffer | Live state after the console stops |
@@ -372,4 +388,6 @@ jq . out/<device>/<os_profile>/<config>/boot/boot.json
 - [Boot arguments](/xnu/boot-arguments)
 - [Troubleshooting](/reference/troubleshooting)
 - [QEMU testing](/reference/qemu)
-- [sheng device page](/devices/sheng)
+- [Reference device record](/devices/sheng)
+
+The panic renderer keeps its first-panic claim in the current kernel’s zeroed BSS. A warm reboot can retain framebuffer pixels; those pixels do not determine whether the new boot may display and export its panic. The final byte of the 2,048-byte panic text buffer is reserved for the claim.

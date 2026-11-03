@@ -1,8 +1,16 @@
 # Device porting records
 
-Every official device repository maintains `porting.toml`. Maintainers and
-agents use this record throughout development. The documentation site renders
-it at the device page from the revision pinned in `devices.toml`.
+Format 2 device repositories maintain `porting.toml`. Maintainers and agents
+update this record throughout development. The documentation site generates
+device pages from its pinned source snapshots.
+
+## Procedure {#procedure}
+
+1. Create the record from `examples/device/porting.toml`, or edit the existing device record. Match its identity to `board.toml`.
+2. Fill each [required area](#required-areas) using the [record fields](#record-format). Include selected components, board-package code, inputs and ordered operations.
+3. Assign a [completion level](#completion-levels) supported by the source, host or device evidence. Record missing inputs and the next concrete action.
+4. Run the checker in [Change workflow](#change-workflow). Resolve the reported identity, coverage and evidence errors.
+5. Publish the device commit and follow [Publishing and reuse](#publishing-and-reuse). Confirm the generated page links to the published revision.
 
 ## Required areas
 
@@ -20,6 +28,7 @@ completion criteria, current limits, next action, and evidence.
 | Input | Bus, sensor protocol, pins, interrupts, firmware, contact IDs and coordinate mapping |
 | GPU | GPU/GMU generation, firmware, votes, SMMU, submission, fences, frontend ABI and presentation |
 | Network | Bus, firmware, interrupts, DMA, OS interface, association and packet transfer |
+| Cellular | Modem firmware and EFS/NV, QRTR/QMI, SIM identity, network registration, IPA/QMAP, data sessions and reset; use `not-applicable` on boards without a modem |
 | Audio | DSP, codec, clocks, firmware services, routes and playback/capture |
 | Power | Regulators, clocks, battery units, firmware ownership and supported transitions |
 | Image assembly | XNU and IPSW versions, ABI inputs, patch order, ADT, payload and boot-image format |
@@ -78,11 +87,11 @@ the measurement needed to resolve them in `next_action`.
 4. Update configuration, procedure and completion criteria when the interface changes.
 5. Run the record checker and the existing checks for the changed implementation.
 6. Submit code and documentation in separate commits in the same pull request.
-7. After the device change is published, update its revision in UniXNU's `devices.toml`.
+7. Publish the device change. The catalog workflow refreshes its source revision and generated page.
 
 ```sh
-python3 scripts/porting-record.py check --device ../UniXNU-sheng
-python3 scripts/porting-record.py check --device ../UniXNU-sheng --base origin/main
+python3 scripts/porting-record.py check --device /path/to/device
+python3 scripts/porting-record.py check --device /path/to/device --base origin/main
 ```
 
 Run the second command on the proposed device branch. It compares committed
@@ -94,17 +103,50 @@ The device template includes `.github/workflows/porting-record.yml`. Official
 device branches require its `Porting record` check. Reviewers verify hardware
 facts, evidence quality, component reuse and the stated completion level.
 
-## Publishing and reuse
+## Publishing and reuse {#publishing-and-reuse}
 
-`npm run build` fetches each registered device's pinned `porting.toml` and
-`board.toml`, checks them and renders the device page. English and Chinese
-pages consume the same record. The record body uses concise English. Site
-sources and deployment remain in UniXNU.
+Complete the [repository publication steps](/porting/device-repository#publish),
+including the `unixnu` GitHub topic.
+
+The [catalog workflow](https://github.com/UniXNU/UniXNU/actions/workflows/sync-devices.yml)
+runs at 00:00 and 12:00 UTC. It searches public repositories in the UniXNU
+organization, with the `unixnu` topic, or with UniXNU in their name or description.
+It reads root `board.toml` and `porting.toml` files at a fixed commit.
+
+`board.toml` uses `schema_version = 2`; the record uses `schema_version = 1`.
+The workflow checks identity, required areas, component coverage and evidence.
+Valid records generate English and Chinese pages, the device index and navigation.
+Format 2 pages with missing or invalid records link to the repository and identify
+the required record work. Existing legacy pages keep their authored content.
+New legacy entries contain a repository link.
+
+`devices.toml` stores repository identities, routes and source revisions.
+`docs/.vitepress/device-records/` stores the source records. Site builds render
+these committed snapshots. Both languages use the same record text. Write the
+record in concise English. Site sources and deployment remain in UniXNU.
+
+To request a scan immediately:
+
+```sh
+gh workflow run sync-devices.yml --repo UniXNU/UniXNU
+```
+
+To scan locally, sign in with `gh auth login` or set `GITHUB_TOKEN`, then run
+from the UniXNU checkout:
+
+```sh
+python3 scripts/sync-devices.py
+npm --prefix docs run build
+```
+
+The workflow builds the site before committing generated changes and publishing
+that commit through the Docs workflow. Source errors appear in the workflow
+summary. Correct the device record and publish it before the next scan.
 
 For a local preview:
 
 ```sh
-python3 scripts/porting-record.py site --local sheng=../UniXNU-sheng
+python3 scripts/porting-record.py site --local myboard=/path/to/device
 cd docs
 npx vitepress build
 ```

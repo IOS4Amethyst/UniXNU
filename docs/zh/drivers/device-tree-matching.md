@@ -2,6 +2,13 @@
 
 驱动通过 IOKit personality 绑定到 provider。personality 是匹配键字典。
 
+## 操作步骤 {#procedure}
+
+1. 在源码中找到驱动的 [provider 类](#provider-类)和 personality，记录 `IOClass`、`IOProviderClass` 及匹配键。
+2. 将 personality 与生成的[设备树节点](#设备树节点)比较，按[示例](#匹配示例)核对名称、compatible 和属性类型。
+3. 修改所属 personality 或 DTS/profile 属性，结合[属性读取代码](#读取属性)确认寄存器宽度与引用编码符合预期。
+4. 修改 personality 后重建内核；修改 ADT 后重建 payload 和启动镜像。检查 [probe 顺序](#probe-顺序)及驱动启动日志，确认绑定到预期 provider。
+
 ## personality 键
 
 | 键 | 含义 |
@@ -82,7 +89,7 @@
 
 包含的 SoC 节点声明 `reg = <0 0x1d84000 0 0x3000>` 和 `unixnu,adt-name = "ufshc"`。
 父节点使用两个地址 cell、两个大小 cell 与恒等 `ranges`。
-转换器将物理范围导出到 `/arm-io/ufshc`，编码为小端 u64 地址及 u64 大小。
+转换器将范围导出到 `/arm-io/ufshc`，编码为相对 `arm-io` 基址的小端 u64 偏移及 u64 大小。
 按 [UFS 适配](/zh/porting/ufs)在消费端驱动配置时钟、电源和 DMA。
 
 ## 读取属性

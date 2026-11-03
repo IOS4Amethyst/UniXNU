@@ -1,24 +1,33 @@
 # 适配驱动
 
-完成[设备仓库创建与解析](/zh/porting/)后使用本清单。先准备平台服务，再逐项接入外设。
+完成[设备仓库创建与解析](/zh/porting/steps)后使用本清单。先准备平台服务，再逐项接入外设。
 选择组件或复用板级代码前，阅读对应指南。
 
-## 1. 定位实现
+## 1. 定义驱动接口
 
-[组件目录](/zh/reference/components)列出组件范围和依赖。
-sheng 的[板级配置](https://github.com/UniXNU/UniXNU-sheng/blob/main/board.toml)选择组件和归档配方。
-其 [package](https://github.com/UniXNU/UniXNU-sheng/tree/main/package)还包含亮度、按键、
-无线板级访问、DSP 服务和电源控制，通过设备脚本参与构建。
+阅读[组件目录](/zh/reference/components)及下面子系统的源码索引，为选定实现写明：
 
-从主仓库查看选定来源：
+| 接口 | 必需定义 |
+| --- | --- |
+| 硬件 | 寄存器范围、访问宽度、中断、时钟、复位和电源所有者 |
+| 传输 | 请求格式、响应匹配、超时、重试和断开处理 |
+| 内存 | CPU/DMA 地址、缓冲大小/对齐、缓存策略和释放时机 |
+| OS | provider 类、属性、ABI 版本、入口和完成通知 |
+| 构建 | 源文件、依赖、归档输出、链接输入和初始化调用方 |
+
+硬件值采用目标 DTS、固件和驱动源码，在配置旁记录来源文件及版本。
+SoC 操作放入共享支持，板级连接和策略放入设备仓库，OS ABI 绑定放入对应 OS 集成。
+指南链接的设备源码作为实现示例。
+
+从主仓库解析目标：
 
 ```sh
 ./unixnu status --json
 ./unixnu tree
 ```
 
-组件构建命令在输出所示的目标构建树中执行。`drivers/` 和 `kits/` 包含解析后的源码，
-原设备 package 链接到 `kits/<board.kit>`。
+底层构建命令在输出的目标树运行。组件位于 `drivers/` 或 `kits/`，
+设备 package 链接到 `kits/<board.kit>`。
 
 ## 2. 按硬件依赖顺序操作
 
@@ -30,23 +39,56 @@ sheng 的[板级配置](https://github.com/UniXNU/UniXNU-sheng/blob/main/board.t
 | 4 | 触控与实体按键 | [输入](/zh/porting/input) | QcomGeniSpi、ShengNovatekTouch、ShengHidInput、ButtonProbe |
 | 5 | GPU 与 Metal | [GPU](/zh/porting/gpu) | Adreno740、AdrenoMetal、Sm8550Platform、AdrenoFirmware、AdrenoPM4、AirNir |
 | 6 | Wi-Fi | [网络](/zh/porting/network) | Ath12kWifi、WifiProbe、WifiNet、MhiBoot |
+| 6a | 基带与移动网络，有基带时适配 | [基带](/zh/porting/baseband) | QcomBaseband、modem 启动、QRTR、IPA/GSI |
 | 7 | DSP、音频、电池、CPU 调频、平台电源 | [DSP 与电源](/zh/porting/power) | AdspProbe、AudioProbe、ShengBattery、CpuFreqProbe、ShengPlatformPower |
 | 8 | OS 服务和打包 | [OS 集成](/zh/porting/platform#block-and-os-services)与[固件](/zh/porting/uefi-firmware) | SoftwareAES、AppleKeyStoreState、XnuPrelink、DarwinBoot、ShengPreflight |
 
-指南说明 sheng 当前实现，以及适配其他设备所需的输入。更换 SoC 时，需要在选定接口下实现
-对应控制器、电源和 DMA 操作。更换 OS 构建时，需要使用该版本 kernelcache 重新确认私有 ABI 绑定。
+每篇指南的源码索引列出所需接口和参考实现。按目标硬件实现控制器、电源和 DMA 操作，
+再使用选定 OS 的 kernelcache 确认私有 ABI 绑定。
 
-## 3. 接入构建
+## 3. 接入初始化、ABI 和构建输入 {#build-integration}
 
-1. 将组件 ID 加入完整的 `[components] include`，在 `status` 中查看展开的依赖。
-2. 按依赖顺序加入归档配方，核对目录中的 `build` 项和设备 `[kernel] archives`。
-3. 接入板级操作、固件提取和初始化调用，检查 probe 调用位置及控制调用方的配置项。
-4. 驱动读取 DTS 属性时加入对应资源。使用 C++ 地址常量的驱动还需要修改源码。
-5. 构建内核，再为当前阶段重建 payload 和启动镜像。按[构建指南](/zh/building)与
-   [启动参数流程](/zh/xnu/boot-arguments#apply-arguments)操作。
+阅读以下集成参考：
 
-sheng 的 `scripts/build-gop-legacy-display.py` 还组装触控、亮度、按键、Wi-Fi、DSP 和电池对象。
-复用该配方需要相应板级源码与 ABI 输入。将子系统拆成独立配方时，核对其源码列表。
+| 源码 | 需要追踪的内容 |
+| --- | --- |
+| [board.toml](https://github.com/UniXNU/UniXNU-sheng/blob/516a780473a2ac59c8b438e132bb60204dda9e22/board.toml) | 组件选择与有序归档命令 |
+| [build-gop-legacy-display.py](https://github.com/UniXNU/UniXNU-sheng/blob/516a780473a2ac59c8b438e132bb60204dda9e22/scripts/build-gop-legacy-display.py#L253) | 内核编译记录复用、源码对象、ABI 输入和归档生成 |
+| [LegacyDisplayProbe.cpp](https://github.com/UniXNU/UniXNU-sheng/blob/516a780473a2ac59c8b438e132bb60204dda9e22/package/LegacyDisplayProbe.cpp#L493) | `native_legacy_display_late_probe` 中的板级初始化调用和依赖顺序 |
+| [BatteryProbe.cpp](https://github.com/UniXNU/UniXNU-sheng/blob/516a780473a2ac59c8b438e132bb60204dda9e22/package/BatteryProbe.cpp#L16) | 后期类初始化前后的 `OSMetaClass::preModLoad/postModLoad` |
+| [内置驱动示例](/zh/drivers/xnu-drivers) | `IOService` 生命周期、provider 匹配和归档/链接配置 |
+
+1. **选择启动路径。** 由 provider 匹配的服务需要 personality、`probe/start` 和
+   [匹配规则](/zh/drivers/device-tree-matching)要求的 provider 属性。
+   板级主动启动的服务需要在资源和 OS 依赖就绪后显式调用。
+   类初始化应与所选构建的正常注册或后期注册方式一致。
+2. **完成资源清理。** 为每项映射、中断、工作循环事件源、计时器、DMA 缓冲和服务引用明确所有者及释放操作。
+   初始化失败、设备移除和复位时，先停止新请求，取消或完成未结束工作，再释放资源。
+3. **按选定 OS 编译。** 按 [XNU 驱动指南](/zh/drivers/xnu-drivers)使用该内核生成的头文件和编译记录。
+   私有接口需要根据选定 kernelcache 记录类布局、虚方法槽位、selector、参数结构和符号绑定。
+   通过[构建输入](/zh/porting/migration#build-inputs)提供所选配方需要的候选内核和审计文件。
+4. **加入配方。** 设备构建脚本放入 `scripts/`，硬件源码放入 `package/`。
+   根据参考配方修改编译记录查找、源码列表、include 路径、类初始化处理和归档目标，
+   生成链接配置指定的 archive。可复用组件同时更新目录中的 `build`、`outputs`、依赖和 OS ABI。
+5. **连接选择与链接。** 将组件 ID 加入完整的 `[components] include`，按依赖顺序将
+   `component:<ID>` 或设备脚本命令加入 `[kernel] archives`。
+   需要构建归档时启用 `CONFIG_XNU_BUILD_ARCHIVES=y`，设置消费端读取的驱动开关、归档路径和
+   [链接输入](/zh/drivers/xnu-drivers)。新增开关应追踪到构建脚本及初始化调用方。
+6. **检查解析结果。** 从主仓库运行 `./unixnu status --json`，确认源码版本、依赖顺序和归档路径。
+   运行 `./unixnu kernel`，检查相应归档日志和预链接输出。
+7. **检查已链接实现。** 在输出的目标树使用选定 LLVM 工具链中的工具：
+
+   ```sh
+   llvm-ar t <archive.a>
+   llvm-nm --defined-only <archive.a>
+   ```
+
+   找到预期驱动对象和启动符号，再确认内核预链接报告包含该归档。
+   从主仓库使用目标本地输入执行 `./unixnu payload` 和 `./unixnu bootimg`。
+8. **执行一次完整操作。** 按子系统步骤检查请求、硬件完成、OS 可见结果，再释放或重复。
+   用[日志](/zh/porting/log-capture)保存返回码和最后完成阶段。
+
+**结果：** 驱动启动路径可追踪，选定 OS ABI 已解析，驱动已链接入内核，并完成本次验证的操作。
 
 ## 4. 记录结果
 

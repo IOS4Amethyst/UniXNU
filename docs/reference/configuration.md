@@ -46,7 +46,7 @@ Supported path keys are `device`, `out`, `uefi`, `edk2`, `kernelcache`, `kernel`
 | `components` | `include` | Canonical component IDs; dependencies are resolved in build order |
 | `kernel` | `config_fragments` | Ordered profile-relative configuration files |
 | `kernel` | `patch_series` | Ordered profile-relative series files |
-| `device_tree` | `source` | DTS entry point, such as `device:dts/sheng.dts` |
+| `device_tree` | `source` | DTS entry point, such as `device:dts/myboard.dts` |
 | `device_tree` | `include_dirs` | DTS include paths, such as `soc:dts` |
 
 Layers apply as ARM64, SoC, OS, device. Tables merge by key; arrays replace.
@@ -141,6 +141,7 @@ The selected defconfig applies after `config_fragments`. File prefixes are
 | `tags_offset` | integer | Tags offset |
 | `pagesize` | integer | Image page size |
 | `header_version` | integer | Android boot image header version |
+| `kernel_compression` | string | `gzip` (default) or `none`; selects how the kernel is stored in the boot image |
 
 ### [[bootimg.dtb_node]]
 
@@ -163,6 +164,7 @@ Types are `s` for string, `x` for hex cells, `i` for decimal cells, `u` for unsi
 | `panic_screen` | boolean | Patch the panic screen into the payload kernel |
 | `trust_cache_sha256` | array | Accepted trust cache hashes. An owner bundle passed with `--owner-trust-cache` skips this list |
 | `kernel_args` | array | Default kernel arguments |
+| `tools` | boolean | Add Tools to the generated menu; configure plugins with [log capture](/porting/log-capture#firmware-setup) |
 | `timeout` | integer | Menu timeout |
 | `skip_setup_tool` | string | Script used by `--skip-setup` |
 

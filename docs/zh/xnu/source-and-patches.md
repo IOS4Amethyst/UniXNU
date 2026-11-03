@@ -1,10 +1,20 @@
 # 源码与补丁
 
-所选 OS 配置固定 XNU 和 ABI 输入。iPadOS 17.7.11 配置使用 `xnu-10063.141.1`、
+所选 OS 配置固定 XNU 和 ABI 输入。arm64 的 iPadOS 17.7.11 配置使用 `xnu-10063.141.1`、
 Darwin 23.6.0、`xnu-10063.121.3` 的 DriverKit 头文件和 `xnu-8796.101.5` 的 TrustCache 头文件。
+iOS 16 与 iPadOS 17 都是 arm64 目标，共用 `profiles/arch/arm64` 中的 arm64 补丁系列；
+iOS 与 iPadOS 27 使用 `profiles/arch/arm64e` 中的 arm64e 补丁系列。
 
 `feeds.toml` 提供 libplatform、libdispatch、AvailabilityVersions、libpthread、
 corecrypto、IOStorageFamily 和 edk2。格式 2 中 OS 配置显式指定的 XNU 版本优先于源码 lock。
+
+## 操作步骤 {#procedure}
+
+1. 选定设备并保存 `./unixnu status --json`，记录 OS profile、XNU 源码版本、配置及补丁顺序。
+2. 确定改动[归属](#归属)，编辑前阅读对应[补丁参考](/zh/xnu/patch-reference)、源码和 ABI 输入。
+3. 先运行一次 `./unixnu kernel` 准备内核，再按[新增补丁](#新增补丁)基于已准备的源码导出修改，放入所属序列。
+4. 再次运行 `./unixnu status --json` 检查补丁位置，重新构建 `./unixnu kernel`，确认补丁应用、archive 构建、链接和预链接成功。
+5. 运行 `./unixnu payload` 和 `./unixnu bootimg` 生成验证镜像，按[启动顺序](/zh/porting/bring-up)记录受影响检查点。更换固定 XNU 版本时按[更新源码](#更新源码)处理。
 
 ## 补丁应用
 
@@ -114,13 +124,13 @@ out/<device>/<os_profile>/<config>/tree/
 
 ## 更新源码
 
-1. 在 `feeds.toml` 中设置新的 `ref` 和 `commit`。
-2. 更新 `darwin`、`version`、`driverkit_tag` 和 `trustcache_tag`。
-3. 把补丁 rebase 到新 tag。
-4. 按新的编译记录更新 `[kernel] archives` 中的静态库脚本。
-5. 重建预链接并重新验证 kernelcache 固定。
+1. 在所选 OS `profile.toml` 的 `[os]` 中更新 `xnu_version` 和完整的 `xnu_revision`；格式 1 在其 XNU feed 中更新 `ref` 和 `commit`。
+2. 核对同一 profile 中的 `darwin`、`driverkit_tag`、`trustcache_tag`、IPSW 身份和预链接 kernelcache 固定值。
+3. 将有序补丁调整到所选源码版本，按新编译记录更新组件与辅助 archive 构建器。
+4. 运行 `./unixnu fetch` 和 `./unixnu status --json`，确认实际 XNU 版本与所选 profile 一致。
+5. 运行 `./unixnu kernel`，检查链接、预链接和组件 ABI 结果，再重新构建 payload 与启动镜像并记录验证结果。
 
-预链接输出依赖原始 kernelcache ABI。新的源码版本可能需要新的 kernelcache 固定和 roots。
+预链接依赖原始 kernelcache ABI。更换源码版本时，一并确认匹配的 kernelcache、根组件及 ABI 输入。
 
 ## 下一步
 

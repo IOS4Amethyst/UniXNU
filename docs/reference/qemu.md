@@ -2,6 +2,13 @@
 
 QEMU tests UniXNU, the injection paths, DarwinBoot and the kernel entry without a device.
 
+## Procedure {#procedure}
+
+1. Install the [requirements](#requirements), including AArch64 firmware. Choose the behavior to exercise: common UEFI, a staged ESP or XNU entry.
+2. For the maintained common UEFI scenarios, run the [smoke test](#smoke-test). For custom EFI inputs, first [stage an ESP](#stage-an-esp), then use [Run](#run) with expected log markers.
+3. For kernel-entry work, prepare the [XNU entry fixture](#xnu-entry-fixture) and follow its runner options. Record the kernel and ADT used.
+4. Inspect the selected scenario's logs and screenshot. Record the exact expected marker reached and the timeout or failure when it was not reached. Continue with device [bring-up](/porting/bring-up) for board resources.
+
 ## Requirements
 
 | Tool | Purpose |

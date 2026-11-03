@@ -1,5 +1,13 @@
 # Troubleshooting
 
+## Procedure {#procedure}
+
+1. Save the failing command and first error. For a boot failure, record the last confirmed [bring-up stage](/porting/bring-up).
+2. Run `./unixnu status --json` to confirm the device, source origins, OS profile and output directory. Inspect the corresponding [log](#logs) or [report](#inspect-a-report).
+3. Find the symptom in the build, IPSW or boot table below. Check the named input before applying its action.
+4. Repeat the failed step with the corrected input. Repack the boot image after changing firmware or payload. Record whether the original error is resolved and which checkpoint now completes.
+5. If the cause remains undetermined, save an [evidence bundle](/guide/debugging#evidence-bundle) with the command, revisions and logs for investigation.
+
 ## Early boot checks
 
 - A top green bar marks DarwinBoot's handoff before the kernel branch. Follow the [green-bar diagnosis](/guide/debugging#green-bar).

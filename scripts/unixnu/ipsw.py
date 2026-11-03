@@ -10,7 +10,6 @@ chip_id, board_id, and the components the steps use.
 import hashlib
 import io
 import json
-import os
 import platform
 import plistlib
 import struct
@@ -21,7 +20,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from .util import Error, expand, log, sha256_file, tool
+from .util import Error, expand, log, lzfse, sha256_file, tool
 
 CHUNK = 8 << 20
 
@@ -171,6 +170,49 @@ class Ipsw:
     def read(self, component):
         return self.zip.read(self.member(component))
 
+    def disk_image(self, component):
+        """A component as a plain disk image: extracted, then decrypted when the IPSW ships it as AEA."""
+        path = self.extract(component)
+        if path.suffix != '.aea':
+            return path
+        return decrypt_aea(path)
+
+
+def decrypt_aea(path):
+    """Decrypt an AEA archive beside it (name without .aea), cached with the sha256 of both files.
+
+    The key is fetched by `ipsw fw aea --key` from the key URL in the archive header and passed to macOS aea;
+    it is not written to disk or the log.
+    """
+    out = path.with_suffix('')
+    record = out.with_suffix(out.suffix + '.json')
+    if out.is_file() and record.is_file():
+        data = json.loads(record.read_text())
+        if data.get('aea_sha256') == json.loads(path.with_suffix(path.suffix + '.json').read_text()).get('sha256') \
+                and data.get('size') == out.stat().st_size:
+            return out
+    if platform.system() != 'Darwin':
+        raise Error(f'{path.name} is AEA encrypted; decrypting it needs macOS /usr/bin/aea')
+    tool('aea', 'macOS /usr/bin/aea decrypts AEA disk images')
+    ipsw = tool('ipsw', 'the ipsw tool fetches the AEA key (brew install blacktop/tap/ipsw)')
+    log(f'ipsw: fetching the AEA key of {path.name}')
+    result = subprocess.run([ipsw, 'fw', 'aea', '--key', str(path)], capture_output=True, text=True)
+    keys = [line.strip() for line in result.stdout.splitlines() if line.strip().startswith('base64:')]
+    if result.returncode or len(keys) != 1:
+        raise Error(f'could not fetch the AEA key of {path.name}: {result.stderr.strip()[-300:]}')
+    partial = out.with_suffix(out.suffix + '.partial')
+    log(f'ipsw: decrypting {path.name}')
+    result = subprocess.run(['/usr/bin/aea', 'decrypt', '-i', str(path), '-o', str(partial), '-key-value', keys[0]],
+                            capture_output=True, text=True)
+    if result.returncode:
+        partial.unlink(missing_ok=True)
+        raise Error(f'aea decrypt of {path.name} failed: {result.stderr.strip()[-300:]}')
+    partial.rename(out)
+    source = json.loads(path.with_suffix(path.suffix + '.json').read_text())
+    record.write_text(json.dumps({'member': source.get('member'), 'aea_sha256': source.get('sha256'),
+                                  'size': out.stat().st_size, 'sha256': sha256_file(out)}, indent=2) + '\n')
+    return out
+
 
 def _der(data, at):
     tag, length = data[at], data[at + 1]
@@ -205,9 +247,7 @@ def kernelcache(ctx, source):
     if out.is_file() and (pin is None or sha256_file(out) == pin):
         return out
     if platform.system() == 'Linux':
-        # Apple's reference LZFSE tool, which scripts/linux/setup-toolchain.py installs.
-        lzfse = Path(os.environ.get('UNIXNU_TOOLCHAIN', '/opt/unixnu-linux')) / 'bin/lzfse'
-        decode = [str(lzfse) if lzfse.is_file() else tool('lzfse', 'run sudo scripts/linux/setup-toolchain.py'), '-decode']
+        decode = [lzfse(), '-decode']
     else:
         tool('compression_tool', 'macOS /usr/bin/compression_tool decodes the LZFSE kernelcache')
         decode = ['/usr/bin/compression_tool', '-decode', '-a', 'lzfse']

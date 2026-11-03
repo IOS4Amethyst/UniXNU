@@ -2,6 +2,13 @@
 
 A driver binds to a provider through an IOKit personality. The personality is a dictionary of match keys.
 
+## Procedure {#procedure}
+
+1. Find the driver's [provider class](#provider-classes) and personality in the source. Record `IOClass`, `IOProviderClass` and matching keys.
+2. Compare the personality with the generated [device-tree node](#device-tree-nodes). Check name, compatible values and property types using [examples](#matching-examples).
+3. Update the owning personality or DTS/profile property. Check the [property reader](#reading-properties) so register widths and reference encoding match its expectations.
+4. Rebuild the kernel for personality changes, and rebuild payload plus boot image for ADT changes. Inspect [probe order](#probe-order) and driver start logs to confirm the intended provider binds.
+
 ## Personality keys
 
 | Key | Meaning |
@@ -83,8 +90,8 @@ enables its existing node:
 
 The included SoC node declares `reg = <0 0x1d84000 0 0x3000>` and
 `unixnu,adt-name = "ufshc"`. Its parent uses two address cells, two size cells and
-identity `ranges`. The converter exports the physical range to `/arm-io/ufshc`
-as a little-endian u64 address followed by a u64 size. Configure clocks, power
+identity `ranges`. The converter exports the range to `/arm-io/ufshc` as a
+little-endian u64 offset from the `arm-io` base followed by a u64 size. Configure clocks, power
 and DMA in the consuming driver as required by [UFS adaptation](/porting/ufs).
 
 ## Reading properties

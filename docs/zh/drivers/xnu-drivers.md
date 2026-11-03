@@ -4,6 +4,14 @@
 
 UniXNU 的 XNU 驱动是编译进内核的 C++ IOKit 类。内核把驱动作为静态库链接，并通过 `KernelConfigTables.cpp` 中的 personality 启动它。
 
+## 操作步骤 {#procedure}
+
+1. 按[内核准备](/zh/guide/build-kernel)生成所选内核的头文件和编译记录，下列示例从其组装构建树运行。
+2. 创建[源码文件](#源码布局)和[驱动类](#驱动类)，按硬件适配 provider 资源与生命周期方法。
+3. [按所选 ABI 编译](#按内核-abi-编译)，生成[静态库](#静态库)，把[链接输入](#链接进内核)加入设备构建选择。
+4. 添加 [personality](#加入-personality) 和匹配的 ADT 资源，一起核对 provider 名称、属性类型及资源依赖。
+5. 回到主仓库运行 `./unixnu kernel`，再构建 payload 与启动镜像。按[测试](#测试)检查，在设备日志中确认驱动启动和子系统需要的操作。
+
 ## 源码布局
 
 ```

@@ -8,8 +8,14 @@ on:
       - 'devices.toml'
       - 'components.toml'
       - 'scripts/porting-record.py'
+      - 'scripts/sync-devices.py'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      revision:
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -25,6 +31,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
           node-version: 22

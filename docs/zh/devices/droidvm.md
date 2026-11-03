@@ -25,3 +25,9 @@ DroidVM 目标把 UniXNU 作为客户机运行在高通手机 Gunyah hypervisor 
 ## 维护
 
 维护者拥有仓库和发布决定。UniXNU 文档记录移植及其状态，不接管维护。
+
+## 诊断工具
+
+宿主机工具从客户机 RAM 和 virtio-gpu scanout 获取日志、panic、进程和画面，并提供 Metal 检查与 GPU 内存统计。按下方指南准备 root ADB、VM 标识和构建主机配置，再执行对应采集步骤。
+
+- [宿主机诊断指南](https://github.com/Droid-VM/UniXNU-droidvm/blob/41261fa968252dabf07078a05f3023f5f596cccd/tools/rig/README.md)

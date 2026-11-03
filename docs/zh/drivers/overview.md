@@ -1,4 +1,4 @@
-# 驱动分层
+# 开发驱动
 
 适配硬件请按[驱动清单](/zh/porting/drivers)操作，其中按依赖顺序列出组件驱动和板级 package 服务。
 
@@ -9,6 +9,14 @@ UniXNU 有三层驱动，分别运行在不同环境，构建和加载方式不�
 | UEFI 驱动 | UEFI boot services | EDK II `.efi` | 固件 dispatch、UniXNU `[[driver]]` 或 kit |
 | 内置 XNU 驱动 | XNU 内核 | 链接进内核的静态库 | 内核启动时 |
 | kext 包 | XNU 内核，由 UEFI 暂存 | `.kext` 包 | 实现协议的 XNU 加载器 |
+
+## 操作步骤 {#procedure}
+
+1. 按硬件接口搜索[组件目录](/zh/reference/components)和[已有仓库](/zh/drivers/repositories)，阅读候选实现的范围、ABI、依赖和源码。
+2. 根据能力需要的阶段[选择执行层次](#选择层次)：固件、内置 XNU 驱动，或匹配加载器的 kext 路径。
+3. 按[匹配](#匹配)和[设备树规则](/zh/drivers/device-tree-matching)确定 provider 与资源，记录真实板级值。
+4. 执行对应实现步骤：[UEFI](/zh/drivers/uefi-drivers)、[内置 XNU](/zh/drivers/xnu-drivers#procedure)或 [kext 暂存](/zh/drivers/kexts#procedure)，将组件和配方加入设备选择。
+5. 构建受影响的产物，按子系统[适配检查](/zh/porting/drivers)验证，在 [porting.toml](/zh/porting/records)中分别记录源码、构建结果和设备行为。
 
 ## 选择层次
 

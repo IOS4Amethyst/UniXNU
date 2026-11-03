@@ -15,6 +15,7 @@
 | RamBlock | [UniXNU/RamBlock](https://github.com/UniXNU/RamBlock) | XNU 存储 | [RamBlock](/zh/drivers/ram-block) |
 | GopFramebuffer | [UniXNU/GopFramebuffer](https://github.com/UniXNU/GopFramebuffer) | XNU 显示 | [GopFramebuffer](/zh/drivers/gop-framebuffer) |
 | QcomGeniSpi | [UniXNU/QcomGeniSpi](https://github.com/UniXNU/QcomGeniSpi) | XNU SPI | [QcomGeniSpi](/zh/drivers/qcom-geni-spi) |
+| QcomBaseband | [UniXNU/QcomBaseband](https://github.com/UniXNU/QcomBaseband) | XNU 基带 | [QcomBaseband](/zh/drivers/qcom-baseband) |
 | SoftwareAES | [UniXNU/SoftwareAES](https://github.com/UniXNU/SoftwareAES) | XNU 加密 | [SoftwareAES](/zh/drivers/software-aes) |
 | AppleKeyStoreState | [UniXNU/AppleKeyStoreState](https://github.com/UniXNU/AppleKeyStoreState) | XNU keystore | [AppleKeyStoreState](/zh/drivers/apple-key-store-state) |
 | VirtioMmioBlock | [UniXNU/VirtioMmioBlock](https://github.com/UniXNU/VirtioMmioBlock) | XNU 存储 | [VirtioMmioBlock](/zh/drivers/virtio-mmio-block) |
@@ -29,6 +30,7 @@
 | AirNir | [UniXNU/AirNir](https://github.com/UniXNU/AirNir) | 编译器 kit | [AirNir](/zh/drivers/air-nir) |
 | AdrenoPM4 | [UniXNU/AdrenoPM4](https://github.com/UniXNU/AdrenoPM4) | GPU 命令 kit | [AdrenoPM4](/zh/drivers/adreno-pm4) |
 | AdrenoFirmware | [UniXNU/AdrenoFirmware](https://github.com/UniXNU/AdrenoFirmware) | GPU 固件 kit | [AdrenoFirmware](/zh/drivers/adreno-firmware) |
+| Sm8550Platform | [UniXNU/UniXNU-sm8550-common](https://github.com/UniXNU/UniXNU-sm8550-common) | SM8550 GPU 平台 kit | [Sm8550Platform](/zh/drivers/sm8550-platform) |
 | DarwinBoot | [UniXNU/DarwinBoot](https://github.com/UniXNU/DarwinBoot) | UEFI 加载器 | [DarwinBoot](/zh/drivers/darwin-boot) |
 | VerifiedRoot | [UniXNU/VerifiedRoot](https://github.com/UniXNU/VerifiedRoot) | 根信任工具 | [VerifiedRoot](/zh/drivers/verified-root) |
 | ShengPreflight | [UniXNU/ShengPreflight](https://github.com/UniXNU/ShengPreflight) | UEFI 预检 | [ShengPreflight](/zh/drivers/sheng-preflight) |

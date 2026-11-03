@@ -45,7 +45,7 @@ kernel_args = ["-v", "serial=3", "debug=0x14e"]
 | `components` | `include` | 规范组件 ID，依赖按构建顺序解析 |
 | `kernel` | `config_fragments` | 有序的配置片段 |
 | `kernel` | `patch_series` | 有序的 series 文件 |
-| `device_tree` | `source` | DTS 入口，例如 `device:dts/sheng.dts` |
+| `device_tree` | `source` | DTS 入口，例如 `device:dts/myboard.dts` |
 | `device_tree` | `include_dirs` | DTS 包含路径，例如 `soc:dts` |
 
 配置层按 ARM64、SoC、OS、设备顺序应用。表按键合并，数组替换。
@@ -140,6 +140,7 @@ kernel_args = ["-v", "serial=3", "debug=0x14e"]
 | `tags_offset` | 整数 | tags 偏移 |
 | `pagesize` | 整数 | 镜像页大小 |
 | `header_version` | 整数 | Android 启动镜像 header 版本 |
+| `kernel_compression` | 字符串 | `gzip`（默认）或 `none`，决定内核在启动镜像中的存储方式 |
 
 ### [[bootimg.dtb_node]]
 
@@ -162,6 +163,7 @@ kernel_args = ["-v", "serial=3", "debug=0x14e"]
 | `panic_screen` | 布尔 | 把 panic 屏幕打进负载内核 |
 | `trust_cache_sha256` | 数组 | 接受的 trust cache 哈希。用 `--owner-trust-cache` 传入的 owner 包跳过此列表 |
 | `kernel_args` | 数组 | 默认内核参数 |
+| `tools` | 布尔 | 在生成的菜单中加入 Tools；按[日志抓取步骤](/zh/porting/log-capture#firmware-setup)配置插件 |
 | `timeout` | 整数 | 菜单超时 |
 | `skip_setup_tool` | 字符串 | `--skip-setup` 使用的脚本 |
 

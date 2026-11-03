@@ -2,6 +2,13 @@
 
 MobileGestalt answers device queries from the Apple device tree (ADT). The payload writes the ADT at build time, so identity changes leave the signed kernel and the userland image untouched.
 
+## Procedure {#procedure}
+
+1. Identify the userland family using [iPadOS and iOS](#ipados-and-ios). Choose matching model, target and product values.
+2. Edit the typed ADT properties using [Apply](#apply). Review [properties](#properties) and [gesture requirements](#full-screen-gestures) together.
+3. Run `./unixnu payload` and `./unixnu bootimg`, then boot the new image.
+4. Check the reported identity and UI behavior. If results still reflect previous values, follow [cached answers](#cached-answers) and record the affected cache and image.
+
 ## Properties
 
 | Property | Node | Example | Effect |
@@ -34,7 +41,7 @@ Use a device without a Home button:
 - `/buttons` without a `menu` entry
 - `home-button-type = 2`
 
-SpringBoard reads the value through `BSPlatform homeButtonType`. With value 2 the lock screen uses the swipe-up gesture. On sheng, a swipe up from the lock screen reaches the passcode view and the passcode view names the device as an iPad.
+SpringBoard reads the value through `BSPlatform homeButtonType`. With value 2 the lock screen uses the swipe-up gesture.
 
 ## iPadOS and iOS
 

@@ -49,6 +49,8 @@
 ["adt"."root"."string"]
 "model" = "iPad7,1"
 "target-type" = "J120"
+# The board name first: the audio server keys its routing database and MediaExperience its per-board tables on it.
+"compatible" = "J120AP"
 
 
 
@@ -82,9 +84,29 @@
 "artwork-device-subtype" = 2732
 "artwork-scale-factor" = 2
 
+# MGGetProductType() looks this 20-byte id up in libMobileGestalt's product table (J120: 0x80ac7ae0); without it every client that
+# switches on the product type (the audio server's routing database, among others) sees an unknown device.
+["adt"."product"."bytes"]
+"product-id" = "e9fefef6e6f9d12a5ba1a2551866cbbd749f0ec3"
+
+
+# The audio server reads IODeviceTree:/product/audio. The original node also sets supports-always-listening, left out here.
+["adt"."product"."audio"]
+
+["adt"."product"."audio"."u32"]
+"wireless-splitter" = 1
+
 
 
 ["adt"."defaults"]
 
 ["adt"."defaults"."u32"]
 "kern.maxvnodes" = 66560
+
+[userdata]
+# Disk images of this OS, in window order; the device sets the partition geometry.
+windows = [{ name = "OS", component = "OS" }, { name = "SystemOS", component = "Cryptex1,SystemOS", optional = true }]
+
+[root]
+# The OS disk image: the APFS volume UUID the root policy signs.
+os_volume_uuid = "04769D26-2CA0-4825-B443-E2E5F88300F2"

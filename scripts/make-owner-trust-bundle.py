@@ -17,9 +17,20 @@ assert count == 2
 offsets = struct.unpack_from('<2I', original, 4)
 originals = [original[offsets[0]:offsets[1]], original[offsets[1]:]]
 trust = json.loads((ROOT / 'build/adreno-metal-plugin/trust.json').read_text())
+# The App cryptex (Cryptex1,AppOS) runs from owner Data, so its own trust module's hashes must be trusted too: the bundle
+# carries exactly one owner module followed by both original Apple modules, and the cryptex entries join the owner module.
+cryptex_trust = ROOT / 'build/app-cryptex/app-trustcache.bin'
+cryptex_hashes = []
+if cryptex_trust.is_file():
+    module = cryptex_trust.read_bytes()
+    entries = struct.unpack_from('<I', module, 20)[0]
+    if struct.unpack_from('<I', module)[0] != 2 or len(module) != 24 + entries * 24:
+        raise SystemExit('The App cryptex trust module is not a complete version-2 module')
+    cryptex_hashes = [module[24 + 24 * entry:24 + 24 * entry + 20] for entry in range(entries)]
 # DarwinBoot's ValidTrustCaches (and the kernel's binary search) need the hashes of a module in strictly ascending order.
-hashes = sorted([bytes.fromhex(trust['cdhash']), bytes.fromhex(trust['daemon_cdhash']), bytes.fromhex(trust['turnip_cdhash'])])
-if len(set(hashes)) != len(hashes):
+hashes = sorted({bytes.fromhex(trust['cdhash']), bytes.fromhex(trust['daemon_cdhash']),
+                 bytes.fromhex(trust['turnip_cdhash']), *cryptex_hashes})
+if len(hashes) != 3 + len(set(cryptex_hashes)):
     raise SystemExit('Duplicate CDHash')
 cdhash = hashes[0]
 identifier = uuid.uuid5(uuid.NAMESPACE_URL, 'org.blu-sharky.adreno-metal:' + ''.join(h.hex() for h in hashes))

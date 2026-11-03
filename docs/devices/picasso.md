@@ -1,15 +1,24 @@
 # Redmi K30 5G (picasso)
 
-picasso is the Redmi K30 5G with the SM7250 SoC. The port below is an independent community project. The UniXNU organization does not maintain it.
+A community-maintained port for SM7250. Current results are based on the maintainer records at the revisions linked below.
 
-| Repository | Maintainer | State |
-| --- | --- | --- |
-| [UniXNU-picasso](https://github.com/YinCQL/UniXNU-picasso) | [YinCQL](https://github.com/YinCQL) | Early skeleton; firmware not built |
+| Repository | Maintainer |
+| --- | --- |
+| [UniXNU-picasso](https://github.com/YinCQL/UniXNU-picasso) | [YinCQL](https://github.com/YinCQL) |
 
 ## State
 
-The repository holds the board description, kernel defconfig, ADT generator and package hooks. The firmware build has not completed. The kernel, IPSW and userdata sections are placeholders to be filled during bring-up. The repository asks readers to expect breakage.
+UEFI starts the menu and DarwinBoot, and XNU reaches the BSD root-device wait. The kernel loads AMFI, AppleImage4, pthread and the MAC framework, initializes the network core and registers APFS.
 
-## Maintenance
+UFS root mounting remains the current bring-up task. The source includes USB console work; full userland and GPU support require further device results.
 
-The maintainer owns the repository and its release decisions. UniXNU documentation lists the port and its state; it does not take over maintenance.
+## Sources
+
+- [README: YinCQL/UniXNU-picasso](https://github.com/YinCQL/UniXNU-picasso/blob/11d7ea8e78976e84663ea4b19e656a5564e6c40e/README.md)
+
+## Use this port
+
+1. Read the repository build instructions and pinned records. Prepare its firmware, system images and board inputs.
+2. Build with that repository's commands. Use [Build and boot](/building) for common configuration.
+3. Follow the [bring-up order](/porting/bring-up) and save results through [log capture](/porting/log-capture).
+4. Update the [porting record](/porting/records) with the source revisions and last confirmed stage.

@@ -16,11 +16,19 @@ flowchart TD
 Firmware and bootloader interfaces use FDT. XNU receives the ADT sidecar next
 to `kernel.macho`. DarwinBoot reads it from the payload entry directory.
 
+## Procedure {#procedure}
+
+1. Gather the board DTS, selected SoC DTSI and the properties consumed by the drivers. Set the source and include paths in [Configuration](#configuration).
+2. Describe hardware with the [bindings](#hardware-bindings): parent cell widths, ranges, interrupts, references and enabled nodes. Check the [required XNU nodes](#required-nodes).
+3. Place Apple platform properties in the selected [OS profile](#os-properties), with board overrides where required. Match the root UUID and payload handoff options to the actual inputs.
+4. Run [standalone conversion](#standalone-conversion) to compile a DTB and generate an ADT with the selected inputs. Review compiler diagnostics and generated node names against the driver matching requirements.
+5. Run `./unixnu payload` and `./unixnu bootimg` using the saved build inputs. Inspect `device-tree/hardware.dtb` and the payload report under the resolved output directory. The [firmware DTB](#boot-image-device-tree) is a separate boot-image input.
+
 ## Configuration
 
 ```toml
 [device_tree]
-source = "device:dts/sheng.dts"
+source = "device:dts/myboard.dts"
 include_dirs = ["soc:dts"]
 ```
 
@@ -35,13 +43,13 @@ The board DTS includes its SoC DTSI:
 /include/ "sm8550.dtsi"
 
 / {
-    model = "Xiaomi Pad 6S Pro";
-    compatible = "xiaomi,sheng", "qcom,sm8550";
+    model = "Example SM8550 device";
+    compatible = "vendor,myboard", "qcom,sm8550";
 };
 ```
 
 The complete board source supplies memory, enabled CPUs, and peripheral inputs.
-See the [device template](/porting/device-repository) and [SM8550 support](/porting/sm8550).
+See the [device template](/porting/device-repository) and [SoC support](/porting/soc-support).
 
 ## Hardware bindings
 
@@ -56,6 +64,7 @@ See the [device template](/porting/device-repository) and [SM8550 support](/port
 | `interrupt-parent` | Controller phandle | Little-endian phandle |
 | `iommus`, `clocks` | Phandle and provider-defined argument cells | Little-endian cells |
 | `unixnu,adt-name` | Exported hardware node name | Child name under `/arm-io` |
+| `unixnu,cluster-type` | `"E"` or `"P"` on a CPU node | `cluster-type`, the character as a little-endian u32 |
 | `status` | `okay`, `ok`, or disabled state | Selects enabled nodes |
 
 Every translated bus declares `ranges`. An empty `ranges` gives an identity
@@ -91,9 +100,17 @@ platform identity, root matching, and payload memory-map placeholders.
 
 ## Standalone conversion
 
+Set the device and SoC source paths. Export `UNIXNU_UNIQUE_CHIP_ID` with the
+target platform seed and select the OS profile before conversion:
+
 ```sh
-dtc -I dts -O dtb -i ../UniXNU-sm8550-common/dts   -o /tmp/sheng.dtb ../UniXNU-sheng/dts/sheng.dts
-python3 scripts/make-adt.py --dtb /tmp/sheng.dtb   --os-profile profiles/os/ipados-17.7.11-21H461/profile.toml   --board ../UniXNU-sheng/board.toml --unique-chip-id <hex>   --data-ramdisk --trust-cache --output /tmp/kernel.macho.adt
+DEVICE_DIR=/path/to/device
+SOC_DTS=/path/to/soc/dts
+dtc -I dts -O dtb -i "$SOC_DTS" -o /tmp/board.dtb "$DEVICE_DIR/dts/myboard.dts"
+python3 scripts/make-adt.py --dtb /tmp/board.dtb \
+  --os-profile profiles/os/ipados-17.7.11-21H461/profile.toml \
+  --board "$DEVICE_DIR/board.toml" --unique-chip-id "$UNIXNU_UNIQUE_CHIP_ID" \
+  --data-ramdisk --trust-cache --output /tmp/kernel.macho.adt
 ```
 
 The command selects memory-map placeholders for the supplied payload inputs.
@@ -211,7 +228,7 @@ arm-io {
 }
 ```
 
-`ranges` maps the bus window. The common generator translates source registers to physical addresses and emits an identity-mapped `arm-io` bus.
+`ranges` maps the bus window. The common generator translates source registers to physical addresses, then emits `arm-io` with one window from the lowest exported register (rounded down to 16 MiB) to the highest. Child `reg` values are offsets from the window base. XNU reads that base as the SoC base and requires it to be non-zero, so an exported register below 16 MiB is an error.
 
 ### product and buttons
 

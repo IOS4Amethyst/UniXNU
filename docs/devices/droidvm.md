@@ -25,3 +25,9 @@ The DroidVM target runs UniXNU as a guest under crosvm on the Gunyah hypervisor 
 ## Maintenance
 
 The maintainer owns the repository and its release decisions. UniXNU documentation lists the port and its state; it does not take over maintenance.
+
+## Diagnostic tools
+
+The host tools read logs, panics, processes and frames from guest RAM and virtio-gpu scanout. They also provide Metal checks and GPU memory statistics. Prepare root ADB, the VM identity and build-host settings using the guide below, then follow its capture procedure.
+
+- [Host diagnostic guide](https://github.com/Droid-VM/UniXNU-droidvm/blob/41261fa968252dabf07078a05f3023f5f596cccd/tools/rig/README.md)

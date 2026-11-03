@@ -83,11 +83,20 @@ unixnu clean
 
 删除板级输出下的 `tree`、`logs`、`kernel`、`package`、`boot` 和 `edk2-conf`，保留已拉取源码。
 
+### release
+
+```
+unixnu release [--os VERSION] [--no-deps] [--check]
+```
+
+为设备依次运行固定步骤 `deps`、`preflight`、`patches`、`build`、`pack` 和 `verify`，然后写出 `package.manifest.json`。设备仓库的 `scripts/package.sh` 调用它。见[设备打包脚本](/zh/porting/packaging)。
+
 ## 选项
 
 | 选项 | 含义 |
 | --- | --- |
 | `-D DIR`、`--device DIR` | 设备仓库 |
+| `--os VERSION` | 本次运行的 OS profile：`17`、`27` 或 `profiles/os` 目录名，输出目录随之变化 |
 | `--out DIR` | 输出根 |
 | `-j N`、`--jobs N` | 并行任务 |
 | `--local DIR` | 与本仓库布局相同的本地树 |
@@ -115,6 +124,9 @@ unixnu clean
 | `--dtb FILE` | bootimg 的编译设备树 |
 | `--ramdisk FILE\|none` | bootimg 的 ramdisk |
 | `-o FILE`、`--output FILE` | 启动镜像输出 |
+| `--stock FILE` | vendor_boot 使用的原厂镜像 |
+| `--ramdisk-addr ADDR` | vendor_boot 的 ramdisk 装载地址 |
+| `--verify-against` | 用原厂 ramdisk 重新打包并要求逐字节一致 |
 
 ## 环境变量
 

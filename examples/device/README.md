@@ -8,12 +8,13 @@ hardware inputs before building.
 1. Copy this directory to `UniXNU-<device>` and read `AGENTS.md`.
 2. Set the board name, description, firmware paths, and complete component selection. Add the shared `UniXNURamDiskDxe` and filesystem dependencies to the firmware DSC and FDF using the [firmware integration guide](https://unixnu.com/porting/uefi-firmware#required-integration).
 3. Pin a reviewed SoC commit in `feeds.toml`.
-4. Fill the DTS model, compatible values, memory map, CPU selection, and peripherals.
-5. List firmware sources and hashes in `proprietary-files.txt`.
+4. Rename `configs/example_defconfig` and `dts/board.dts` for the board, then update `kernel.defconfig` and `device_tree.source`. Fill the DTS model, compatible values, memory map, CPU selection, and peripherals.
+5. Pin the official firmware archive in `board.toml` `[firmware.image]` and list the extracted inputs and hashes in `proprietary-files.txt`; extracted firmware lives in no repository.
 6. Set partition geometry and payload inputs from the device's records.
-7. Complete each area in `porting.toml`, including ownership paths, findings and completion criteria.
-8. Enable the template CI workflow and require its `Porting record` check on the official device branch.
-9. Set `example = false`, select the defconfig, fetch, and inspect `status --json`.
+7. Match the identity in `porting.toml` to `board.toml`. Cover every selected component and dependency, with board-specific ownership paths, findings and completion criteria.
+8. Enable the template CI workflows and require the `Porting record` check on the official device branch.
+9. Set `example = false`, then run `scripts/package.sh --check --os <profile>` and fix what it reports. Commit the generated `unixnu.lock`; keep local overrides in the ignored `local.toml`.
+10. Complete the shared [repository checklist](https://unixnu.com/porting/device-repository#completion), build and record results, then follow [publication](https://unixnu.com/porting/device-repository#publish). Add the **`unixnu` GitHub topic** and verify it appears in the repository topics.
 
 The zero memory range and `REQUIRED_` values identify inputs to complete.
 `patches/xnu/series` lists board patches in application order. `package/` contains
@@ -24,10 +25,10 @@ board packaging. Shared resources come from the selected SoC and component sourc
 - [Component catalog](https://unixnu.com/reference/components)
 - [Migration](https://unixnu.com/porting/migration)
 
-`porting.toml` is the shared maintainer and agent record. The site renders it
-from the device commit pinned in UniXNU's `devices.toml`. Publish that pin with
-the English and Chinese device pages. Put board driver submodules in this
-device repository. See the [record guide](https://unixnu.com/porting/records)
+`porting.toml` is the shared maintainer and agent record. Publish it with
+`board.toml` and the `unixnu` topic. The central catalog workflow pins the
+source and generates both language editions twice daily. Put board driver
+submodules in this device repository. See the [record guide](https://unixnu.com/porting/records)
 and [UFS guide](https://unixnu.com/porting/ufs).
 
 ```sh

@@ -38,6 +38,6 @@
 
 ## 下一步
 
-- [总览](/zh/guide/overview)
+- [移植设备](/zh/porting/steps)
 - [命令行](/zh/reference/cli)
 - [设备](/zh/devices/)

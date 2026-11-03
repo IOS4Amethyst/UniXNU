@@ -26,6 +26,7 @@
 ../../../../../patches/xnu/native-union-lower-directory.patch
 ../../../../../patches/xnu/native-work-interval-soft-fail.patch
 ../../../../../patches/xnu/native-work-interval-trace.patch
+../../../../../patches/xnu/native-work-interval-instance.patch
 ../../../../../patches/xnu/non-apple-cache-monitor.patch
 ../../../../../patches/xnu/non-apple-iommu-bootstrap.patch
 ../../../../../patches/xnu/non-apple-pmap-field.patch
@@ -51,3 +52,5 @@
 ../../../../../patches/xnu/zzx-pmap-sync-64bit-pa.patch
 ../../../../../patches/xnu/zzy-native-gpu-addon-mount.patch
 ../../../../../patches/xnu/zzy-staged-system-apps.patch
+../../../../../patches/xnu/zzyb-native-cryptex-os-view.patch
+../../../../../patches/xnu/zzyc-owner-skip-launch-constraints.patch

@@ -1,15 +1,24 @@
 # Xiaomi Mi Pad 4 LTE (clover)
 
-Xiaomi Mi Pad 4 LTE (clover) is a SDM660 device. The port below is an independent community project. The UniXNU organization does not maintain it.
+A community-maintained port for SDM660. Current results are based on the maintainer records at the revisions linked below.
 
-| Repository | Maintainer | State |
-| --- | --- | --- |
+| Repository | Maintainer |
+| --- | --- |
 | [UniXNU-clover](https://github.com/qine233/UniXNU-clover) | [qine233](https://github.com/qine233) |
 
 ## State
 
-The board, ADT, kernel, payload and firmware build. On hardware the UniXNU menu and the green, blue and magenta entry bars appear; the kernel reaches early boot and panic probes. A full XNU boot is not reached.
+An eMMC-backed mockfs root runs a static EL0 test init. Device records cover fork/exec, Mach calls and a kernel panic triggered from EL0.
 
-## Maintenance
+The current source contains APFS publication, mount and file-readback probes. Full Apple userland and those APFS checkpoints need matching device records.
 
-The maintainer owns the repository and its release decisions. UniXNU documentation lists the port and its state; it does not take over maintenance.
+## Sources
+
+- [README: qine233/UniXNU-clover](https://github.com/qine233/UniXNU-clover/blob/7dec18936cebae5c4a1bf9c1b7b4db48643ac788/README.md)
+
+## Use this port
+
+1. Read the repository build instructions and pinned records. Prepare its firmware, system images and board inputs.
+2. Build with that repository's commands. Use [Build and boot](/building) for common configuration.
+3. Follow the [bring-up order](/porting/bring-up) and save results through [log capture](/porting/log-capture).
+4. Update the [porting record](/porting/records) with the source revisions and last confirmed stage.

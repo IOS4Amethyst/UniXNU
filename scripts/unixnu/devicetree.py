@@ -186,6 +186,22 @@ def physical(bus, address, size):
     return address
 
 
+ARM_IO_ALIGN = 1 << 24
+
+
+def arm_io_window(hardware):
+    """The arm-io window: child registers are offsets from its base, which XNU reads as the SoC base and requires to be non-zero."""
+    spans = [(physical(entry.parent, address, size), size) for entry in hardware if 'reg' in entry.properties
+             for address, size in registers(entry)]
+    if not spans:
+        return ARM_IO_ALIGN, ARM_IO_ALIGN
+    base = min(address for address, _ in spans) & ~(ARM_IO_ALIGN - 1)
+    top = -(-max(address + size for address, size in spans) // ARM_IO_ALIGN) * ARM_IO_ALIGN
+    if not base:
+        raise Error('arm-io needs a non-zero base: an exported register lies below 16 MiB')
+    return base, top - base
+
+
 STRINGS = {'compatible', 'device_type', 'reg-names', 'interrupt-names', 'clock-names', 'method'}
 U32 = {'phandle', 'linux,phandle', '#interrupt-cells', '#iommu-cells', '#clock-cells', 'clock-frequency', 'timebase-frequency'}
 U64 = {'redistributor-stride'}
@@ -193,7 +209,7 @@ FLAGS = {'interrupt-controller', 'dma-coherent'}
 REFERENCES = {'interrupt-parent': None, 'iommus': '#iommu-cells', 'clocks': '#clock-cells'}
 
 
-def hardware_properties(entry, handles, io_base=0):
+def hardware_properties(entry, handles, base=0):
     properties = []
     for key, raw in entry.properties.items():
         if key in STRINGS:
@@ -236,17 +252,20 @@ def hardware_properties(entry, handles, io_base=0):
                 properties.append(('interrupt-parent', struct.pack('<I', handle)))
         elif key == 'reg':
             pairs = [(physical(entry.parent, address, size), size) for address, size in registers(entry)]
-            if any(address < io_base for address, _ in pairs):
+            if any(address < base for address, _ in pairs):
                 raise Error(f'{entry.name}: MMIO address is below arm-io base')
-            pairs = [(address - io_base, size) for address, size in pairs]
+            pairs = [(address - base, size) for address, size in pairs]
             properties.append((key, b''.join(struct.pack('<QQ', *pair) for pair in pairs)))
     return properties
+
+
+PROPERTY_TYPES = ('string', 'strings', 'u32', 'u64', 'bytes')
 
 
 def typed_properties(table):
     result = []
     for kind, properties in table.items():
-        if kind not in ('string', 'strings', 'u32', 'u64', 'bytes'):
+        if kind not in PROPERTY_TYPES:
             raise Error(f'Unknown ADT property type: {kind}')
         for key, value in properties.items():
             if kind == 'string':
@@ -261,7 +280,17 @@ def typed_properties(table):
     return result
 
 
-def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon=False):
+def platform_node(name, table):
+    """A configured ADT node: its property tables by type, and any other key as a child node of the same form."""
+    properties = typed_properties({kind: value for kind, value in table.items() if kind in PROPERTY_TYPES})
+    children = [platform_node(child, value) for child, value in table.items() if child not in PROPERTY_TYPES]
+    for child, value in table.items():
+        if child not in PROPERTY_TYPES and not isinstance(value, dict):
+            raise Error(f'ADT node {name}: {child} is neither a property type nor a child node')
+    return node(name, properties, children)
+
+
+def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon=False, root_policies=False):
     root = read_fdt(Path(dtb).read_bytes())
     entries = list(root.walk())
     handles = {}
@@ -279,7 +308,8 @@ def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon
     dram_base, dram_size = registers(memory[0])[0]
     if payload.get('dram_size') is not None and int(str(payload['dram_size']), 0) != dram_size:
         raise Error('payload.dram_size differs from the hardware DTS')
-    chosen = [('random-seed', os.urandom(64)), ('dram-base', struct.pack('<Q', dram_base)),
+    # xnu-12377 takes 4 x 64 seed bytes on ARM and panics with fewer; older kernels read the first 64.
+    chosen = [('random-seed', os.urandom(256)), ('dram-base', struct.pack('<Q', dram_base)),
               ('dram-size', struct.pack('<Q', dram_size)), *empty_nvram_proxy()]
     if unique_chip_id:
         seed = int(str(unique_chip_id), 16)
@@ -309,6 +339,7 @@ def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon
     mappings = [('PackedRAMDisk' if options.get('packed_data_ramdisk') else 'RAMDisk', bytes(16))] if data else []
     mappings += [('TrustCache', bytes(16))] if trust else []
     mappings += [('GpuAddon', bytes(16))] if addon else []
+    mappings += [('RootPolicies', bytes(16))] if root_policies else []
     children = [node('chosen', chosen, [node('memory-map', mappings), node('manifest-properties')])]
     cpus = next((entry for entry in root.children if entry.name == 'cpus'), None)
     if cpus is None:
@@ -320,14 +351,17 @@ def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon
         values = registers(entry)
         if len(values) != 1 or values[0][0] > 0xffffffff:
             raise Error(f'{entry.name}: CPU affinity must fit a u32')
-        cluster = entry.strings('unixnu,cluster-type')
-        if cluster not in ([], ['E'], ['P']):
-            raise Error(f'{entry.name}: unixnu,cluster-type must be E or P')
-        cpu_nodes.append(node(f'cpu{len(cpu_nodes)}', [('reg', struct.pack('<I', values[0][0])),
-                         *([('cluster-type', struct.pack('<I', ord(cluster[0])))] if cluster else []),
-                         ('state', b'running\0' if not cpu_nodes else b'waiting\0'), ('device_type', b'cpu\0'),
-                         ('compatible', entry.properties['compatible']),
-                         ('timebase-frequency', struct.pack('<I', cpus.scalar('timebase-frequency')))]))
+        properties = [('reg', struct.pack('<I', values[0][0])),
+                      ('state', b'running\0' if not cpu_nodes else b'waiting\0'), ('device_type', b'cpu\0'),
+                      ('compatible', entry.properties['compatible']),
+                      ('timebase-frequency', struct.pack('<I', cpus.scalar('timebase-frequency')))]
+        if 'unixnu,cluster-type' in entry.properties:
+            # XNU reads the cluster type as an integer character: 'E' or 'P'.
+            kind = entry.strings('unixnu,cluster-type')
+            if kind not in (['E'], ['P']):
+                raise Error(f'{entry.name}: unixnu,cluster-type must be "E" or "P"')
+            properties.append(('cluster-type', struct.pack('<I', ord(kind[0]))))
+        cpu_nodes.append(node(f'cpu{len(cpu_nodes)}', properties))
     if not cpu_nodes:
         raise Error('Hardware DTS requires an enabled boot CPU')
     children.append(node('cpus', children=cpu_nodes))
@@ -340,17 +374,24 @@ def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon
     names = [entry.strings('unixnu,adt-name')[0] for entry in hardware]
     if len(set(names)) != len(names):
         raise Error('Exported ADT hardware names must be unique')
-    io_base = int(str(options.get('arm_io_base', 0)), 0)
-    if not 0 <= io_base < 0x100000000:
-        raise Error('arm_io_base must be below 4 GiB')
+    base, size = arm_io_window(hardware)
+    if 'arm_io_base' in options:
+        base = int(str(options['arm_io_base']), 0)
+        if not 0 < base < 0x100000000:
+            raise Error('arm_io_base must be non-zero and below 4 GiB')
+        size = 0x100000000 - base
     children.append(node('arm-io', [('device_type', b'arm-io\0'), ('#address-cells', struct.pack('<I', 2)),
-                         ('#size-cells', struct.pack('<I', 2)), ('ranges', struct.pack('<QQQ', 0, io_base, 0x100000000 - io_base))],
-                         [node(name, hardware_properties(entry, handles, io_base)) for name, entry in zip(names, hardware)]))
+                         ('#size-cells', struct.pack('<I', 2)), ('ranges', struct.pack('<QQQ', 0, base, size))],
+                         [node(name, hardware_properties(entry, handles, base)) for name, entry in zip(names, hardware)]))
     for name in ('defaults', 'options', 'product', 'buttons'):
         if name in platform or name in ('defaults', 'options', 'product'):
-            children.append(node(name, typed_properties(platform.get(name, {}))))
-    root_properties = [('compatible', root.properties['compatible']), ('#address-cells', struct.pack('<I', 2)),
-                       ('#size-cells', struct.pack('<I', 2)), *typed_properties(platform.get('root', {}))]
+            children.append(platform_node(name, platform.get(name, {})))
+    # A configured root 'compatible' goes before the hardware DTS's own entries: an OS identity's board name comes first (the OS
+    # reads the first entry as the hardware model) and the board's compatible strings stay matchable after it.
+    configured = dict(typed_properties(platform.get('root', {})))
+    compatible = configured.pop('compatible', b'') + root.properties['compatible']
+    root_properties = [('compatible', compatible), ('#address-cells', struct.pack('<I', 2)),
+                       ('#size-cells', struct.pack('<I', 2)), *configured.items()]
     if not any(key == 'model' for key, _ in root_properties):
         root_properties.append(('model', root.properties['model']))
     return node('device-tree', root_properties, children)
