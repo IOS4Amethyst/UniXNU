@@ -251,7 +251,10 @@ def hardware_properties(entry, handles, base=0):
             if 'interrupt-parent' not in entry.properties:
                 properties.append(('interrupt-parent', struct.pack('<I', handle)))
         elif key == 'reg':
-            pairs = [(physical(entry.parent, address, size) - base, size) for address, size in registers(entry)]
+            pairs = [(physical(entry.parent, address, size), size) for address, size in registers(entry)]
+            if any(address < base for address, _ in pairs):
+                raise Error(f'{entry.name}: MMIO address is below arm-io base')
+            pairs = [(address - base, size) for address, size in pairs]
             properties.append((key, b''.join(struct.pack('<QQ', *pair) for pair in pairs)))
     return properties
 
@@ -372,6 +375,11 @@ def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon
     if len(set(names)) != len(names):
         raise Error('Exported ADT hardware names must be unique')
     base, size = arm_io_window(hardware)
+    if 'arm_io_base' in options:
+        base = int(str(options['arm_io_base']), 0)
+        if not 0 < base < 0x100000000:
+            raise Error('arm_io_base must be non-zero and below 4 GiB')
+        size = 0x100000000 - base
     children.append(node('arm-io', [('device_type', b'arm-io\0'), ('#address-cells', struct.pack('<I', 2)),
                          ('#size-cells', struct.pack('<I', 2)), ('ranges', struct.pack('<QQQ', 0, base, size))],
                          [node(name, hardware_properties(entry, handles, base)) for name, entry in zip(names, hardware)]))

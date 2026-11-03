@@ -27,6 +27,8 @@
 | `native-smp-secondary` | `MAX_CPUS` 提高到 8，BCM2837 secondary CPU 使用 MPIDR Affinity1 |
 | `native-arm-pan` | 设置 `XNU_NATIVE_PAN` 时启用 ARMv8.1 PAN |
 | `native-dt-panic-region` | 从设备树读取并校验 panic 日志区域 |
+| `zzzzz-video-console-physical-fb` | 将未标记的低地址 GOP 作为物理帧缓冲映射 |
+| `zzzzzz-video-console-text` | 设置 `-textconsole` 时将图形启动控制台切换为文本模式 |
 
 ## 4 KiB 页
 

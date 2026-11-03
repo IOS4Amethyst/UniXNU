@@ -21,13 +21,14 @@ MKBOOTIMG_FLAGS = ('base', 'kernel_offset', 'tags_offset', 'pagesize', 'header_v
                    'os_patch_level', 'ramdisk_offset', 'second_offset', 'cmdline')
 
 
-def compile_shim(uefi, base, size, requires_header, scratch):
+def compile_shim(uefi, base, size, requires_header, scratch, embedded_payload_size=0):
     clang, objcopy, nm = tool('clang'), tool('llvm-objcopy', 'brew install llvm'), tool('llvm-nm', 'brew install llvm')
     source = uefi / 'BootShim/BootShim.S'
     if not source.is_file():
         raise Error(f'{source} missing: --uefi must be a Mu-Silicium checkout')
     obj = scratch / 'shim.o'
     run([clang, '--target=aarch64-none-elf', '-c', f'-DFD_BASE={base}', f'-DFD_SIZE={size}',
+         f'-DEMBEDDED_PAYLOAD_SIZE={embedded_payload_size}',
          f'-DREQUIRES_KERNEL_HEADER={int(requires_header)}', source, '-o', obj], capture=True)
     run([objcopy, '-O', 'binary', obj, scratch / 'shim.bin'], capture=True)
     shim = (scratch / 'shim.bin').read_bytes()
@@ -35,7 +36,7 @@ def compile_shim(uefi, base, size, requires_header, scratch):
     offset = next((int(line.split()[0], 16) for line in symbols.splitlines() if line.endswith(' _Payload')), None)
     if offset != len(shim):
         raise Error('a literal pool or padding separates the _Payload label from the appended firmware volume')
-    if requires_header and (shim[56:60] != b'ARM\x64' or struct.unpack_from('<QQ', shim, 8) != (base, len(shim) + size)):
+    if requires_header and (shim[56:60] != b'ARM\x64' or struct.unpack_from('<QQ', shim, 8) != (base, len(shim) + size + embedded_payload_size)):
         raise Error('the ARM64 image header does not describe the shim plus the firmware volume')
     return shim
 
@@ -89,11 +90,13 @@ def build(ctx, uefi, fd, dtb, ramdisk=None, output=None):
     out.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='unixnu-bootimg-') as scratch_name:
         scratch = Path(scratch_name)
-        shim = compile_shim(uefi, base, size, requires_header, scratch)
+        embed_ramdisk = config.get('boot_shim', {}).get('embed_ramdisk', False)
+        ramdisk_bytes = Path(ramdisk).read_bytes() if embed_ramdisk and ramdisk else b''
+        shim = compile_shim(uefi, base, size, requires_header, scratch, len(ramdisk_bytes))
         tree = patch_dtb(Path(dtb).read_bytes(), ctx.board.get('bootimg', {}).get('dtb_node', []), scratch)
         if tree[:4] != b'\xd0\x0d\xfe\xed' or struct.unpack_from('>I', tree, 4)[0] != len(tree):
             raise Error('invalid compiled device tree')
-        combined = shim + firmware
+        combined = shim + firmware + ramdisk_bytes
         # [bootimg.image] kernel_compression selects the kernel encoding. The
         # default keeps the gzip convention; "none" writes the uncompressed
         # BootShim and firmware blob, which is useful when a vendor ABL is
@@ -104,7 +107,10 @@ def build(ctx, uefi, fd, dtb, ramdisk=None, output=None):
         kernel = (gzip.compress(combined, mtime=0) if compression == 'gzip' else combined) + tree
         kernel_path = scratch / (('Image.gz-dtb' if compression == 'gzip' else 'Image-dtb'))
         kernel_path.write_bytes(kernel)
-        if ramdisk:
+        if embed_ramdisk:
+            ramdisk_path = scratch / 'ramdisk'
+            ramdisk_path.write_bytes(b'')
+        elif ramdisk:
             ramdisk_path = Path(ramdisk)
             if not ramdisk_path.is_file():
                 raise Error(f'ramdisk not found: {ramdisk_path}')
@@ -118,6 +124,7 @@ def build(ctx, uefi, fd, dtb, ramdisk=None, output=None):
         run(command, capture=True)
         report = verify(out, combined, tree, ramdisk_path, image, compression)
     report.update(image_sha256=sha256_file(out), image_bytes=out.stat().st_size, fd_sha256=sha256_file(fd),
+                  embedded_ramdisk_bytes=len(ramdisk_bytes),
                   dtb_sha256=sha256_file(dtb), shim_bytes=len(shim), hardware_tested=False)
     (out.parent / 'boot.json').write_text(json.dumps(report, indent=2) + '\n')
     log(f'bootimg: {out} ({out.stat().st_size} bytes)')
@@ -147,7 +154,7 @@ def verify(path, combined, tree, ramdisk_path, image, compression='gzip'):
             raise Error('boot image header does not match the requested parameters')
         if kernel_address != image['base'] + image['kernel_offset'] or tags != image['base'] + image['tags_offset']:
             raise Error('boot image load addresses do not match the requested offsets')
-        start = 0
+        start = page
         ramdisk_start = page * (1 + -(-kernel_size // page))
     kernel = data[start:start + kernel_size]
     if compression == 'gzip':
