@@ -27,9 +27,8 @@ import sys
 PRIVATE_LISTS = ('Private.exports', 'Private.arm64.exports')
 
 
-def linked_objects(obj_dir, level):
+def linked_objects(directory):
     """The objects the kernel link consumed, as named by the file list it wrote."""
-    directory = obj_dir / f'{level}_ARM64_BCM2837'
     filelist = directory / 'link.filelist'
     if not filelist.is_file():
         raise SystemExit(f'no {filelist}: the link did not get far enough to write its object list')
@@ -85,15 +84,14 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--tree', required=True, type=Path, help='tree root of the kernel build')
     parser.add_argument('--obj-dir', required=True, type=Path,
-                        help='object tree of the build, relative to the tree or absolute')
-    parser.add_argument('--level', required=True, help='kernel configuration level, e.g. RELEASE')
+                        help='object directory of the level, e.g. build/xnu/ios-obj/RELEASE_ARM64_BCM2837')
     options = parser.parse_args()
 
     tree = options.tree.resolve()
-    obj_dir = options.obj_dir if options.obj_dir.is_absolute() else tree / options.obj_dir
+    directory = options.obj_dir if options.obj_dir.is_absolute() else tree / options.obj_dir
     source = tree / '.cache/xnu-work' / 'config'
 
-    objects = linked_objects(obj_dir, options.level)
+    objects = linked_objects(directory)
     if not objects:
         raise SystemExit('the link file list names no objects that exist; the compile did not finish')
     names = defined_names(objects)
@@ -126,12 +124,10 @@ def main():
 
     # Keep every run's removals: a later relink starts from the lists this one wrote, so the
     # record accumulates the names dropped from Apple's lists for this kernel.
-    directory = obj_dir / f'{options.level}_ARM64_BCM2837'
     record = directory / 'omitted-unavailable-forced-exports.json'
     previous = json.loads(record.read_text()) if record.is_file() else {}
     earlier = previous.get('removed', []) if isinstance(previous, dict) else []
     record.write_text(json.dumps({
-        'level': options.level,
         'lists': changed,
         'removed': sorted({*earlier, *removed}),
     }, indent=2) + '\n')

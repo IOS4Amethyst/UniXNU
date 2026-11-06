@@ -880,7 +880,7 @@ if [ "$XNU_BUILD_STATUS" != 0 ] && [ "$XNU_CONFIG_LEVEL" != DEVELOPMENT ]; then
   # and keeps the original status.
   set +e
   python3 scripts/prune-release-export-list.py \
-    --tree "$ROOT" --obj-dir "$XNU_OBJ_DIR" --level "$XNU_CONFIG_LEVEL"
+    --tree "$ROOT" --obj-dir "$XNU_OBJ_DIR"
   XNU_PRUNE_STATUS=$?
   set -e
   if [ "$XNU_PRUNE_STATUS" = 0 ]; then
