@@ -22,6 +22,17 @@ class NativeKernelTests(unittest.TestCase):
     def test_prelink_success_publishes_image_and_relocates_record_paths(self):
         self.check_prelink_publication(fail=False)
 
+    def test_prelink_regression_policy_bounds_the_new_gaps(self):
+        """A policy names a gap the prelink may keep; a bigger count at the same target fails."""
+        record = {'collection_slide': '0x0',
+                  'missing': {'com.apple.kernel': {'0xfffffff007001000': 1}},
+                  'stubbed': {}}
+        policy = {'kernelcache_sha256': 'x', 'missing': {'com.apple.kernel': {'0xfffffff007001000': 1}}, 'stubbed': {}}
+        kernel.check_prelink_regressions(record, policy)
+        record['missing']['com.apple.kernel']['0xfffffff007001000'] = 2
+        with self.assertRaisesRegex(Error, 'prelink regression'):
+            kernel.check_prelink_regressions(record, policy)
+
     def check_prelink_publication(self, fail):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
