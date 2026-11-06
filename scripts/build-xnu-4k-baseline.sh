@@ -844,16 +844,46 @@ if not stamp.exists() or stamp.read_text() != identity:
     stamp.write_text(identity)
 PY
 EXTRA_CFLAGS="$EXTRA_CFLAGS -DXNU_BOOT_PROGRESS=$BOOT_PROGRESS"
-make -C .cache/xnu-work "${XNU_BUILD_TARGET:-build}" SDKROOT="${XNU_SDKROOT:-iphoneos}" ARCH_CONFIGS=ARM64 \
-  MACHINE_CONFIGS=BCM2837 KERNEL_CONFIGS=$XNU_CONFIG_LEVEL \
-  ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG="$XNU_ARCH_STRING" LARGE_MEMORY_DEFINE=-UARM_LARGE_MEMORY \
-  ARM64_LINK_ADDR=0xfffffff007004000 ARM64_PLKSEG_ADDR=0xfffffff004004000 \
-  DEPLOYMENT_TARGET_FLAGS="-miphoneos-version-min=$IOS_VERSION -DXNU_TARGET_OS_IOS" \
-  DEPLOYMENT_LINKER_FLAGS="-Wl,-ios_version_min,$IOS_VERSION" \
-  RC_DARWIN_KERNEL_VERSION="$XNU_DARWIN" RC_ProjectSourceVersion="$XNU_VERSION" \
-  BUILD_LTO=0 BOUND_CHECKS=0 BUILD_WERROR="${XNU_BUILD_WERROR:-0}" MAKEJOBS=-j"${JOBS:-4}" \
-  CFLAGS_EXTRA="$EXTRA_CFLAGS" "${EXTRA_MAKE_ARGS[@]}" ${XNU_HOST_MAKE_ARGS[@]+"${XNU_HOST_MAKE_ARGS[@]}"} \
+# RELEASE alone links with -Wl,-exported_symbols_list,all-kpi.exp (makedefs/MakeInc.def:
+# LDFLAGS_KERNEL_ONLY_CONFIG_RELEASEARM64; the DEVELOPMENT set is empty, which is why the
+# bring-up level never had to satisfy it). all-kpi.exp is the union of config/*.exports,
+# which names exclave and SPTM symbols - IOUnifiedAddressTranslator, sptm_gen3dart_*,
+# t8110dart_*, uat_* - that this source tree does not build at any level, so a RELEASE
+# link stops on the export list rather than on the code.
+XNU_BUILD_ARGS=(
+  -C .cache/xnu-work "${XNU_BUILD_TARGET:-build}" SDKROOT="${XNU_SDKROOT:-iphoneos}" ARCH_CONFIGS=ARM64
+  MACHINE_CONFIGS=BCM2837 KERNEL_CONFIGS=$XNU_CONFIG_LEVEL
+  ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG="$XNU_ARCH_STRING" LARGE_MEMORY_DEFINE=-UARM_LARGE_MEMORY
+  ARM64_LINK_ADDR=0xfffffff007004000 ARM64_PLKSEG_ADDR=0xfffffff004004000
+  DEPLOYMENT_TARGET_FLAGS="-miphoneos-version-min=$IOS_VERSION -DXNU_TARGET_OS_IOS"
+  DEPLOYMENT_LINKER_FLAGS="-Wl,-ios_version_min,$IOS_VERSION"
+  RC_DARWIN_KERNEL_VERSION="$XNU_DARWIN" RC_ProjectSourceVersion="$XNU_VERSION"
+  BUILD_LTO=0 BOUND_CHECKS=0 BUILD_WERROR="${XNU_BUILD_WERROR:-0}" MAKEJOBS=-j"${JOBS:-4}"
+  CFLAGS_EXTRA="$EXTRA_CFLAGS"
   OBJROOT="$ROOT/build/xnu/ios-obj" SYMROOT="$ROOT/build/xnu/ios-sym" DSTROOT="$ROOT/build/xnu/ios-dst"
+)
+set +e
+make "${XNU_BUILD_ARGS[@]}" "${EXTRA_MAKE_ARGS[@]}" ${XNU_HOST_MAKE_ARGS[@]+"${XNU_HOST_MAKE_ARGS[@]}"} \
+  2>&1 | tee "$ROOT/build/xnu/kernel-$XNU_CONFIG_LEVEL_LC.log"
+XNU_BUILD_STATUS=${PIPESTATUS[0]}
+set -e
+if [ "$XNU_BUILD_STATUS" != 0 ] && [ "$XNU_CONFIG_LEVEL" != DEVELOPMENT ]; then
+  # Prune the export names no built object defines and relink. Only the export list changes;
+  # the code, the objects and every other link input stay as they were. The removed names are
+  # written next to the kernel so the difference from Apple's list is reviewable.
+  XNU_BUILD_STATUS=$(python3 scripts/prune-release-export-list.py \
+    --tree "$ROOT" --obj-dir "$XNU_OBJ_DIR" --level "$XNU_CONFIG_LEVEL" \
+    || echo "$XNU_BUILD_STATUS")
+  if [ "$XNU_BUILD_STATUS" = 0 ]; then
+    make "${XNU_BUILD_ARGS[@]}" "${EXTRA_MAKE_ARGS[@]}" ${XNU_HOST_MAKE_ARGS[@]+"${XNU_HOST_MAKE_ARGS[@]}"} \
+      2>&1 | tee -a "$ROOT/build/xnu/kernel-$XNU_CONFIG_LEVEL_LC.log"
+    XNU_BUILD_STATUS=${PIPESTATUS[0]}
+  fi
+fi
+if [ "$XNU_BUILD_STATUS" != 0 ]; then
+  echo "build-xnu-4k-baseline.sh: kernel $XNU_CONFIG_LEVEL build failed" >&2
+  exit "$XNU_BUILD_STATUS"
+fi
 if [ "${XNU_SOURCE_CORECRYPTO14:-0}" = 1 ] && [ "$CRYPTO_BOOTSTRAP_MODE" = source ]; then
   python3 scripts/seal-source-crypto-kernel.py \
     "$XNU_OBJ_DIR/mach.$XNU_CONFIG_LEVEL_LC.bcm2837.unstripped"
