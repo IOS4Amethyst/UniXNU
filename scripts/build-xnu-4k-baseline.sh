@@ -863,21 +863,32 @@ XNU_BUILD_ARGS=(
   OBJROOT="$ROOT/build/xnu/ios-obj" SYMROOT="$ROOT/build/xnu/ios-sym" DSTROOT="$ROOT/build/xnu/ios-dst"
 )
 set +e
+# The log lands beside the object tree, which a first pass on a fresh tree has not made yet.
+mkdir -p "$ROOT/build/xnu"
+XNU_KERNEL_LOG="$ROOT/build/xnu/kernel-$XNU_CONFIG_LEVEL_LC.log"
+# Write the log from a redirection rather than a pipe, so the status kept is make's own and
+# a log that cannot be opened cannot stand in for it.
 make "${XNU_BUILD_ARGS[@]}" "${EXTRA_MAKE_ARGS[@]}" ${XNU_HOST_MAKE_ARGS[@]+"${XNU_HOST_MAKE_ARGS[@]}"} \
-  2>&1 | tee "$ROOT/build/xnu/kernel-$XNU_CONFIG_LEVEL_LC.log"
-XNU_BUILD_STATUS=${PIPESTATUS[0]}
+  > >(tee "$XNU_KERNEL_LOG") 2>&1
+XNU_BUILD_STATUS=$?
 set -e
 if [ "$XNU_BUILD_STATUS" != 0 ] && [ "$XNU_CONFIG_LEVEL" != DEVELOPMENT ]; then
-  # Prune the export names no built object defines and relink. Only the export list changes;
-  # the code, the objects and every other link input stay as they were. The removed names are
-  # written next to the kernel so the difference from Apple's list is reviewable.
-  XNU_BUILD_STATUS=$(python3 scripts/prune-release-export-list.py \
-    --tree "$ROOT" --obj-dir "$XNU_OBJ_DIR" --level "$XNU_CONFIG_LEVEL" \
-    || echo "$XNU_BUILD_STATUS")
-  if [ "$XNU_BUILD_STATUS" = 0 ]; then
+  # Prune the export names no built object defines, then link again. Only the export list
+  # changes; the objects, the code and every other link input stay as they were, and the
+  # removed names are written next to the kernel beside Apple's list. A failure that names
+  # nothing prunable - the bootstrap pass missing its archives, say - leaves the lists alone
+  # and keeps the original status.
+  set +e
+  python3 scripts/prune-release-export-list.py \
+    --tree "$ROOT" --obj-dir "$XNU_OBJ_DIR" --level "$XNU_CONFIG_LEVEL"
+  XNU_PRUNE_STATUS=$?
+  set -e
+  if [ "$XNU_PRUNE_STATUS" = 0 ]; then
+    set +e
     make "${XNU_BUILD_ARGS[@]}" "${EXTRA_MAKE_ARGS[@]}" ${XNU_HOST_MAKE_ARGS[@]+"${XNU_HOST_MAKE_ARGS[@]}"} \
-      2>&1 | tee -a "$ROOT/build/xnu/kernel-$XNU_CONFIG_LEVEL_LC.log"
-    XNU_BUILD_STATUS=${PIPESTATUS[0]}
+      > >(tee -a "$XNU_KERNEL_LOG") 2>&1
+    XNU_BUILD_STATUS=$?
+    set -e
   fi
 fi
 if [ "$XNU_BUILD_STATUS" != 0 ]; then
