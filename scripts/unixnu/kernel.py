@@ -257,12 +257,28 @@ def check_prelink_regressions(record, policy):
         raise Error('prelink lacks required absolute adapter branch relocations')
 
 
+def prelink_kernel_path(spec, ctx):
+    """The kernel a board's [kernel.prelink] names, at the level the board builds.
+
+    The profile writes the path in full, naming one configuration level, because a prelink
+    target is a qualified artifact. A board that selects another level gets the same path
+    with the level substituted, so the profile keeps describing the iPadOS bring-up kernel
+    and the board describes its own.
+    """
+    path = spec['kernel']
+    level = ctx.board.get('kernel', {}).get('config_level', 'DEVELOPMENT')
+    qualified = '/DEVELOPMENT_ARM64_BCM2837/mach.development.'
+    if level == 'DEVELOPMENT' or qualified not in path:
+        return path
+    return path.replace(qualified, f'/{level}_ARM64_BCM2837/mach.{level.lower()}.')
+
+
 def prelink(ctx):
     """Produce out/<device>/kernel/kernel.macho from the XNU build and the original kernelcache."""
     spec = ctx.board.get('kernel', {}).get('prelink')
     if not spec:
         raise Error('board.toml has no [kernel.prelink]')
-    kernel = ctx.tree / spec['kernel']
+    kernel = ctx.tree / prelink_kernel_path(spec, ctx)
     if not kernel.is_file():
         raise Error(f'{kernel} not found; run "unixnu build kernel" first')
     output = ctx.work / 'kernel/kernel.macho'
