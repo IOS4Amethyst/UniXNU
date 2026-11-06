@@ -872,12 +872,11 @@ make "${XNU_BUILD_ARGS[@]}" "${EXTRA_MAKE_ARGS[@]}" ${XNU_HOST_MAKE_ARGS[@]+"${X
   > >(tee "$XNU_KERNEL_LOG") 2>&1
 XNU_BUILD_STATUS=$?
 set -e
-if [ "$XNU_BUILD_STATUS" != 0 ] && [ "$XNU_CONFIG_LEVEL" != DEVELOPMENT ]; then
+if [ "$XNU_BUILD_STATUS" != 0 ] && [ "$XNU_CONFIG_LEVEL" != DEVELOPMENT ] && [ "$BOOTSTRAP" = 0 ]; then
   # Prune the export names no built object defines, then link again. Only the export list
   # changes; the objects, the code and every other link input stay as they were, and the
   # removed names are written next to the kernel beside Apple's list. A failure that names
-  # nothing prunable - the bootstrap pass missing its archives, say - leaves the lists alone
-  # and keeps the original status.
+  # nothing prunable leaves the lists alone and keeps the original status.
   set +e
   python3 scripts/prune-release-export-list.py \
     --tree "$ROOT" --obj-dir "$XNU_OBJ_DIR"
@@ -891,11 +890,16 @@ if [ "$XNU_BUILD_STATUS" != 0 ] && [ "$XNU_CONFIG_LEVEL" != DEVELOPMENT ]; then
     set -e
   fi
 fi
-if [ "$XNU_BUILD_STATUS" != 0 ]; then
+# The bootstrap pass exists for the compile records: it links without the archives, stops at
+# the link, and the unixnu driver changes the tree and runs the real pass. Letting the final
+# link failure through leaves that pass a status the driver reads as complete.
+if [ "$XNU_BUILD_STATUS" != 0 ] && [ "$BOOTSTRAP" != 1 ]; then
   echo "build-xnu-4k-baseline.sh: kernel $XNU_CONFIG_LEVEL build failed" >&2
   exit "$XNU_BUILD_STATUS"
 fi
-if [ "${XNU_SOURCE_CORECRYPTO14:-0}" = 1 ] && [ "$CRYPTO_BOOTSTRAP_MODE" = source ]; then
+if [ "$XNU_BUILD_STATUS" != 0 ]; then
+  echo "build-xnu-4k-baseline.sh: bootstrap pass stopped at the $XNU_CONFIG_LEVEL link; the compile records are in $XNU_OBJ_DIR" >&2
+elif [ "${XNU_SOURCE_CORECRYPTO14:-0}" = 1 ] && [ "$CRYPTO_BOOTSTRAP_MODE" = source ]; then
   python3 scripts/seal-source-crypto-kernel.py \
     "$XNU_OBJ_DIR/mach.$XNU_CONFIG_LEVEL_LC.bcm2837.unstripped"
 fi
