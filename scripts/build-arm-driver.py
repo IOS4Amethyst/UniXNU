@@ -2,6 +2,7 @@
 """Compile the generic platform expert against the actual source-kernel ABI."""
 import argparse
 import json
+import os
 import tomllib
 from pathlib import Path
 import subprocess
@@ -39,6 +40,10 @@ if args.negative_verified_block and not args.verified_root:
     parser.error('The isolated input fault requires verified block mode')
 component = args.component
 recipe = ROOT / OBJECT_TREE / 'iokit' / CONFIG_LEVEL / 'IOPlatformExpert.cpo.json'
+if not recipe.is_file():
+    raise SystemExit(f'{component}: no compile record {recipe} '
+                     f'(UNIXNU_XNU_CONFIG_LEVEL={os.environ.get("UNIXNU_XNU_CONFIG_LEVEL")!r}); '
+                     'the kernel pass that writes it runs before the archives')
 record = json.loads(recipe.read_text().strip().rstrip(','))
 directory = 'GopFramebuffer' if runtime in ('NativeLegacyDisplay', 'NativeGOPPresenter') else 'AdrenoMetal' if runtime in ('NativeOfflineGPU', 'NativeOfflineAccelerator', 'NativeIOGPUProviderProbe') else identifier
 filename = next((name for name in metadata.get('source_files', []) if name.endswith('.cpp')), runtime + '.cpp')
