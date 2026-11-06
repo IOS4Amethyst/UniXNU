@@ -139,7 +139,8 @@ def kernel_symbols(kernel):
     table = {}
     for line in subprocess.run([nm, '-n', kernel], capture_output=True, text=True, check=True).stdout.splitlines():
         parts = line.split()
-        if len(parts) == 3:
+        # A kernel collection lists each fileset entry under a 'Symbols from ...:' header line.
+        if len(parts) == 3 and all(ch in '0123456789abcdefABCDEF' for ch in parts[0]):
             table.setdefault(int(parts[0], 16), parts[2])
     return table
 
