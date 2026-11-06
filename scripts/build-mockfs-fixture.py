@@ -4,10 +4,10 @@ import json
 from pathlib import Path
 import subprocess
 
-from kernel_target import check_object
+from kernel_target import CONFIG_LEVEL, OBJECT_TREE, check_object
 
 ROOT = Path(__file__).resolve().parents[1]
-recipe = ROOT / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/vfs_conf.o.json'
+recipe = ROOT / OBJECT_TREE / 'bsd' / CONFIG_LEVEL / 'vfs_conf.o.json'
 record = json.loads(recipe.read_text().strip().rstrip(','))
 out = ROOT / 'build/mockfs-fixture'
 out.mkdir(parents=True, exist_ok=True)

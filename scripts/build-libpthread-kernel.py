@@ -9,7 +9,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from kernel_target import TRIPLE, check_object
+from kernel_target import CONFIG_LEVEL, OBJECT_TREE, TRIPLE, check_object
 from xnu_symbols import kernel_names
 SOURCE = ROOT / 'refer/libpthread'
 # The OS profile pins the source; without it, the Darwin 23 revision.
@@ -30,7 +30,7 @@ for patch in sorted((ROOT / 'patches/libpthread').glob('*.patch')):
 SOURCE = WORK
 OUT = ROOT / 'build/libpthread-kernel'
 OUT.mkdir(parents=True, exist_ok=True)
-recipe = ROOT / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/osfmk/DEVELOPMENT/prng_random.o.json'
+recipe = ROOT / OBJECT_TREE / 'osfmk' / CONFIG_LEVEL / 'prng_random.o.json'
 record = json.loads(recipe.read_text().strip().rstrip(','))
 sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], text=True).strip()
 

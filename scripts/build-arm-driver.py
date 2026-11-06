@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from kernel_target import ARCH, TRIPLE, check_object
+from kernel_target import ARCH, CONFIG_LEVEL, OBJECT_TREE, TRIPLE, check_object
 
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -38,7 +38,7 @@ if (args.verified_root or args.negative_verified_block) and args.component != 'N
 if args.negative_verified_block and not args.verified_root:
     parser.error('The isolated input fault requires verified block mode')
 component = args.component
-recipe = ROOT / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/iokit/DEVELOPMENT/IOPlatformExpert.cpo.json'
+recipe = ROOT / OBJECT_TREE / 'iokit' / CONFIG_LEVEL / 'IOPlatformExpert.cpo.json'
 record = json.loads(recipe.read_text().strip().rstrip(','))
 directory = 'GopFramebuffer' if runtime in ('NativeLegacyDisplay', 'NativeGOPPresenter') else 'AdrenoMetal' if runtime in ('NativeOfflineGPU', 'NativeOfflineAccelerator', 'NativeIOGPUProviderProbe') else identifier
 filename = next((name for name in metadata.get('source_files', []) if name.endswith('.cpp')), runtime + '.cpp')

@@ -2,7 +2,9 @@
 import subprocess
 from pathlib import Path
 
-OBJ = 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837'
+from kernel_target import OBJECT_TREE
+
+OBJ = OBJECT_TREE
 
 
 def defined_names(paths, global_only):

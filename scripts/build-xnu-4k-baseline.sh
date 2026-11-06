@@ -15,6 +15,24 @@ AVAILABILITY_TAG=${UNIXNU_AVAILABILITYVERSIONS_TAG:-AvailabilityVersions-141.1}
 # The architecture and OS profiles select the kernel slice and the deployment target.
 XNU_ARCH_STRING=${UNIXNU_XNU_ARCH:-arm64}
 IOS_VERSION=${UNIXNU_IOS_VERSION:-17.0}
+# The kernel configuration level. DEVELOPMENT is the bring-up level: xnu's
+# KERNEL_DEV set adds development, mach_assert, config_xnupost, proc_ref_debug
+# and config_ext_paniclog on top of KERNEL_BASE. RELEASE is KERNEL_BASE alone,
+# which is what Apple ships and what shrinks __DATA_CONST enough to fit the
+# collection's com.apple.kernel slot (0xd8000): measured 0xb8000 against 0x120000.
+# Everything below derives from this one value, so the default keeps the object
+# directories, stamp files and link inputs exactly as they were.
+XNU_CONFIG_LEVEL=${UNIXNU_XNU_CONFIG_LEVEL:-DEVELOPMENT}
+case "$XNU_CONFIG_LEVEL" in
+  DEVELOPMENT|RELEASE|DEBUG|PROFILE|KASAN) ;;
+  *)
+    echo "error: unsupported XNU_CONFIG_LEVEL '$XNU_CONFIG_LEVEL'" >&2
+    exit 1
+    ;;
+esac
+# Object tree and link artifact names use the lower-case form of the level.
+XNU_CONFIG_LEVEL_LC=$(printf '%s' "$XNU_CONFIG_LEVEL" | tr '[:upper:]' '[:lower:]')
+XNU_OBJ_DIR="build/xnu/ios-obj/${XNU_CONFIG_LEVEL}_ARM64_BCM2837"
 if [ ! -d refer/xnu/.git ]; then
   git clone --depth 1 --branch "$XNU_TAG" https://github.com/apple-oss-distributions/xnu.git refer/xnu
 fi
@@ -88,19 +106,19 @@ if [ "$BOOT_PROGRESS" = 1 ]; then
   fi
   python3 scripts/build-boot-progress.py
 fi
-python3 - "$BOOT_PROGRESS" <<'PY'
+python3 - "$BOOT_PROGRESS" "$XNU_OBJ_DIR" "$XNU_CONFIG_LEVEL" "$XNU_CONFIG_LEVEL_LC" <<'PY'
 from pathlib import Path
 import hashlib, sys
-mode = sys.argv[1]
-out = Path('build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837')
+mode, obj_dir, level, level_lc = sys.argv[1:5]
+out = Path(obj_dir)
 stamp = out / '.boot-progress-mode'
 identity = mode + ':' + (hashlib.sha256(Path('build/boot-progress/libBootProgress.a').read_bytes()).hexdigest() if mode == '1' else 'disabled')
 if not stamp.exists() or stamp.read_text() != identity:
     for directory, names in [('osfmk', ['arm_init','startup','video_console','serial_console','sleh']),
                              ('bsd', ['bsd_init','kern_exec','kern_exit']), ('pexpert', ['pe_kprintf'])]:
         for name in names:
-            (out / directory / 'DEVELOPMENT' / (name + '.o')).unlink(missing_ok=True)
-    (out / 'mach.development.bcm2837.unstripped').unlink(missing_ok=True)
+            (out / directory / level / (name + '.o')).unlink(missing_ok=True)
+    (out / ('mach.' + level_lc + '.bcm2837.unstripped')).unlink(missing_ok=True)
     out.mkdir(parents=True, exist_ok=True)
     stamp.write_text(identity)
 PY
@@ -108,6 +126,8 @@ if [ ! -d refer/libplatform/.git ]; then
   git clone --depth 1 --branch "$LIBPLATFORM_TAG" https://github.com/apple-oss-distributions/libplatform.git refer/libplatform
 fi
 export KERNEL_SDKROOT=$ROOT/.cache/fakeroot
+# The archive builders resolve the kernel object tree through scripts/kernel_target.py, which reads this.
+export UNIXNU_XNU_CONFIG_LEVEL
 mkdir -p "$KERNEL_SDKROOT/usr/local/include/kernel" "$ROOT/build/xnu/obj/EXPORT_HDRS/libsa"
 copy_tree() {
   mkdir -p "$2"
@@ -135,6 +155,8 @@ for header in Path('refer/libdispatch/os').glob('*.h'):
         target.write_bytes(result.stdout)
 PY
 if [ ! -f "$KERNEL_SDKROOT/.xnu-$XNU_VERSION-headers" ]; then
+  # installhdrs installs the libsyscall headers through unifdef and does not
+  # depend on the kernel configuration level, so the cached set is shared.
   make -C .cache/xnu-work installhdrs SDKROOT=macosx ARCH_CONFIGS=ARM64 \
     MACHINE_CONFIGS=BCM2837 KERNEL_CONFIGS=DEVELOPMENT \
     RC_DARWIN_KERNEL_VERSION="$XNU_DARWIN" RC_ProjectSourceVersion="$XNU_VERSION" \
@@ -173,7 +195,7 @@ if [ "$CRYPTO_BOOTSTRAP_MODE" != source ] && [ "$CRYPTO_BOOTSTRAP_MODE" != preli
   echo 'XNU_CRYPTO_BOOTSTRAP must be source or prelinked' >&2
   exit 1
 fi
-CRYPTO_OBJECT_DIR=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/osfmk/DEVELOPMENT
+CRYPTO_OBJECT_DIR="$ROOT/$XNU_OBJ_DIR"/osfmk/$XNU_CONFIG_LEVEL
 if [ -d "$CRYPTO_OBJECT_DIR" ]; then
   if [ "$(cat "$CRYPTO_OBJECT_DIR/.crypto-bootstrap-mode" 2>/dev/null || echo source)" != "$CRYPTO_BOOTSTRAP_MODE" ]; then
     rm -f "$CRYPTO_OBJECT_DIR/prng_random.o"
@@ -250,7 +272,7 @@ if [ "$MOCKFS_MODE" = 1 ] && { [ "${XNU_ARMCPU:-0}" != 1 ] || [ "${XNU_SOURCE_PT
   echo 'The offline executable-root fixture requires the real CPU/pthread components' >&2
   exit 1
 fi
-MOCKFS_OBJECT_DIR=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT
+MOCKFS_OBJECT_DIR="$ROOT/$XNU_OBJ_DIR"/bsd/$XNU_CONFIG_LEVEL
 if [ -d "$MOCKFS_OBJECT_DIR" ]; then
   if [ "$(cat "$MOCKFS_OBJECT_DIR/.source-mockfs-mode" 2>/dev/null || echo 0)" != "$MOCKFS_MODE" ]; then
     rm -f "$MOCKFS_OBJECT_DIR/vfs_conf.o"
@@ -354,9 +376,9 @@ if [ "$SHENG_PMGR" = 1 ] && [ "${XNU_SOURCE_CORECRYPTO14:-0}" != 1 ]; then
   echo 'The sheng PMGR instrument requires the original-component kernel configuration' >&2
   exit 1
 fi
-SHENG_PMGR_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.sheng-pmgr-mode
+SHENG_PMGR_STAMP="$ROOT/$XNU_OBJ_DIR"/.sheng-pmgr-mode
 if [ "$(cat "$SHENG_PMGR_STAMP" 2>/dev/null || echo 0)" != "$SHENG_PMGR" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/bsd_init.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/bsd/$XNU_CONFIG_LEVEL/bsd_init.o"
   printf '%s\n' "$SHENG_PMGR" > "$SHENG_PMGR_STAMP"
 fi
 EXTRA_MAKE_ARGS+=("bsd_init.o_CFLAGS_ADD=-DXNU_SHENG_PMGR=$SHENG_PMGR -DXNU_VERIFIED_ROOT_PROBE=$OWNER_ROOT_PROBE -DXNU_OWNER_ROOT_AUDIT=$OWNER_ROOT_AUDIT -DXNU_OWNER_ROOT_TRUST=$OWNER_ROOT_TRUST -DXNU_ADRENO_FIRMWARE_PROBE=$ADRENO_FIRMWARE_PROBE -DXNU_ADRENO_PM4_PROBE=$ADRENO_PM4_PROBE -DXNU_SMMU4K_PROBE=$SMMU4K_PROBE -DXNU_CONSTANT_UPLOADS_PROBE=$CONSTANT_UPLOADS_PROBE -DXNU_NATIVE_LEGACY_DISPLAY=${XNU_NATIVE_LEGACY_DISPLAY:-0} -DXNU_NATIVE_OFFLINE_GPU=$NATIVE_OFFLINE_GPU")
@@ -371,14 +393,14 @@ if [ "$NATIVE_LEGACY_DISPLAY" != 0 ] && [ "$NATIVE_LEGACY_DISPLAY" != 1 ]; then
   exit 1
 fi
 EXTRA_MAKE_ARGS+=("IOUserClient.cpo_CFLAGS_ADD=-DXNU_NATIVE_MOBILE_DISPLAY=$NATIVE_MOBILE_DISPLAY -DXNU_NATIVE_LEGACY_DISPLAY=$NATIVE_LEGACY_DISPLAY")
-MOBILE_DISPLAY_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.native-mobile-display-mode
+MOBILE_DISPLAY_STAMP="$ROOT/$XNU_OBJ_DIR"/.native-mobile-display-mode
 if [ "$(cat "$MOBILE_DISPLAY_STAMP" 2>/dev/null || echo 0)" != "$NATIVE_MOBILE_DISPLAY:$NATIVE_LEGACY_DISPLAY" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/iokit/DEVELOPMENT/IOUserClient.cpo"
+  rm -f "$ROOT/$XNU_OBJ_DIR/iokit/$XNU_CONFIG_LEVEL/IOUserClient.cpo"
   printf '%s\n' "$NATIVE_MOBILE_DISPLAY:$NATIVE_LEGACY_DISPLAY" > "$MOBILE_DISPLAY_STAMP"
 fi
-OWNER_ROOT_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.owner-root-probe-mode
+OWNER_ROOT_STAMP="$ROOT/$XNU_OBJ_DIR"/.owner-root-probe-mode
 if [ "$(cat "$OWNER_ROOT_STAMP" 2>/dev/null || echo 0:0:0:0:0:0)" != "$OWNER_ROOT_PROBE:$OWNER_ROOT_AUDIT:$OWNER_ROOT_TRUST:$ADRENO_FIRMWARE_PROBE:$ADRENO_PM4_PROBE:$SMMU4K_PROBE:$CONSTANT_UPLOADS_PROBE:$NATIVE_LEGACY_DISPLAY:$NATIVE_OFFLINE_GPU" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/bsd_init.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/bsd/$XNU_CONFIG_LEVEL/bsd_init.o"
   printf '%s\n' "$OWNER_ROOT_PROBE:$OWNER_ROOT_AUDIT:$OWNER_ROOT_TRUST:$ADRENO_FIRMWARE_PROBE:$ADRENO_PM4_PROBE:$SMMU4K_PROBE:$CONSTANT_UPLOADS_PROBE:$NATIVE_LEGACY_DISPLAY:$NATIVE_OFFLINE_GPU" > "$OWNER_ROOT_STAMP"
 fi
 OWNER_CACHE_MOUNT=${XNU_OWNER_CACHE_MOUNT:-0}
@@ -409,10 +431,10 @@ if [ "$OWNER_BOOT_MANIFEST" = 1 ] && [ "$OWNER_CACHE_STARTUP" != 1 ]; then
   exit 1
 fi
 EXTRA_MAKE_ARGS+=("IOKitBSDInit.cpo_CFLAGS_ADD=-DXNU_OWNER_BOOT_MANIFEST=$OWNER_BOOT_MANIFEST")
-OWNER_MANIFEST_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.owner-boot-manifest-mode
+OWNER_MANIFEST_STAMP="$ROOT/$XNU_OBJ_DIR"/.owner-boot-manifest-mode
 if [ "$(cat "$OWNER_MANIFEST_STAMP" 2>/dev/null || echo 0)" != "$OWNER_BOOT_MANIFEST" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/iokit/DEVELOPMENT/IOKitBSDInit.cpo"
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/iokit/$XNU_CONFIG_LEVEL/IOKitBSDInit.cpo"
+  rm -f "$ROOT/$XNU_OBJ_DIR/bsd/$XNU_CONFIG_LEVEL/kern_exec.o"
   printf '%s\n' "$OWNER_BOOT_MANIFEST" > "$OWNER_MANIFEST_STAMP"
 fi
 OWNER_DATA_MOUNT=${XNU_OWNER_DATA_MOUNT:-0}
@@ -457,9 +479,9 @@ path.parent.mkdir(parents=True, exist_ok=True)
 if not path.exists() or path.read_text() != text:
     path.write_text(text)
 PY_DATA_UUID
-OWNER_DATA_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.owner-data-mount-mode
+OWNER_DATA_STAMP="$ROOT/$XNU_OBJ_DIR"/.owner-data-mount-mode
 if [ "$(cat "$OWNER_DATA_STAMP" 2>/dev/null || echo 0)" != "$OWNER_DATA_MOUNT:$NATIVE_RAM_BLOCK:${XNU_OWNER_CACHE_VOLUME_UUID:-}:${XNU_OWNER_ROOT_VOLUME_UUID:-}" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/bsd/$XNU_CONFIG_LEVEL/kern_exec.o"
   printf '%s\n' "$OWNER_DATA_MOUNT:$NATIVE_RAM_BLOCK:${XNU_OWNER_CACHE_VOLUME_UUID:-}:${XNU_OWNER_ROOT_VOLUME_UUID:-}" > "$OWNER_DATA_STAMP"
 fi
 OWNER_CRYPTEX_FILES=${XNU_OWNER_CRYPTEX_FILES:-0}
@@ -471,9 +493,9 @@ if [ "$OWNER_CRYPTEX_FILES" = 1 ] && [ "$OWNER_CACHE_STARTUP" != 1 ]; then
   echo 'Owner Cryptex file lookup requires authenticated mounted SystemOS startup' >&2
   exit 1
 fi
-OWNER_CRYPTEX_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.owner-cryptex-files-mode
+OWNER_CRYPTEX_STAMP="$ROOT/$XNU_OBJ_DIR"/.owner-cryptex-files-mode
 if [ "$(cat "$OWNER_CRYPTEX_STAMP" 2>/dev/null || echo 0)" != "$OWNER_CRYPTEX_FILES" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/bsd/$XNU_CONFIG_LEVEL/kern_exec.o"
   printf '%s\n' "$OWNER_CRYPTEX_FILES" > "$OWNER_CRYPTEX_STAMP"
 fi
 OWNER_UNION_SYSTEMOS=${XNU_OWNER_UNION_SYSTEMOS:-0}
@@ -485,9 +507,9 @@ if [ "$OWNER_UNION_SYSTEMOS" = 1 ] && { [ "$OWNER_CACHE_STARTUP" != 1 ] || [ "$O
   echo 'Owner union composition requires authenticated startup and no fallback-path experiment' >&2
   exit 1
 fi
-OWNER_UNION_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.owner-union-systemos-mode
+OWNER_UNION_STAMP="$ROOT/$XNU_OBJ_DIR"/.owner-union-systemos-mode
 if [ "$(cat "$OWNER_UNION_STAMP" 2>/dev/null || echo 0)" != "$OWNER_UNION_SYSTEMOS" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/bsd/$XNU_CONFIG_LEVEL/kern_exec.o"
   printf '%s\n' "$OWNER_UNION_SYSTEMOS" > "$OWNER_UNION_STAMP"
 fi
 NATIVE_AIR_INIT=${XNU_NATIVE_AIR_INIT:-0}
@@ -499,15 +521,15 @@ if [ "$NATIVE_AIR_INIT" = 1 ] && { [ "$OWNER_CACHE_MOUNT" != 1 ] || [ "$OWNER_DA
   echo 'Offline AIR init requires the actual owner root, SystemOS and scratch Data path' >&2
   exit 1
 fi
-NATIVE_AIR_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.native-air-init-mode
+NATIVE_AIR_STAMP="$ROOT/$XNU_OBJ_DIR"/.native-air-init-mode
 if [ "$(cat "$NATIVE_AIR_STAMP" 2>/dev/null || echo 0)" != "$NATIVE_AIR_INIT" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/bsd/$XNU_CONFIG_LEVEL/kern_exec.o"
   printf '%s\n' "$NATIVE_AIR_INIT" > "$NATIVE_AIR_STAMP"
 fi
 EXTRA_MAKE_ARGS+=("kern_exec.o_CFLAGS_ADD=-DXNU_NATIVE_AIR_INIT=$NATIVE_AIR_INIT -DXNU_OWNER_CACHE_MOUNT=$OWNER_CACHE_MOUNT -DXNU_OWNER_CACHE_STARTUP=$OWNER_CACHE_STARTUP -DXNU_OWNER_BOOT_MANIFEST=$OWNER_BOOT_MANIFEST -DXNU_OWNER_DATA_MOUNT=$OWNER_DATA_MOUNT -DXNU_NATIVE_RAM_BLOCK=$NATIVE_RAM_BLOCK -DXNU_OWNER_CRYPTEX_FILES=$OWNER_CRYPTEX_FILES -DXNU_OWNER_UNION_SYSTEMOS=$OWNER_UNION_SYSTEMOS -include $OWNER_DATA_HEADER")
-OWNER_CACHE_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.owner-cache-mount-mode
+OWNER_CACHE_STAMP="$ROOT/$XNU_OBJ_DIR"/.owner-cache-mount-mode
 if [ "$(cat "$OWNER_CACHE_STAMP" 2>/dev/null || echo 0:0)" != "$OWNER_CACHE_MOUNT:$OWNER_CACHE_STARTUP" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/kern_exec.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/bsd/$XNU_CONFIG_LEVEL/kern_exec.o"
   printf '%s\n' "$OWNER_CACHE_MOUNT:$OWNER_CACHE_STARTUP" > "$OWNER_CACHE_STAMP"
 fi
 OWNER_CACHE_CARRIER=${XNU_OWNER_CACHE_CARRIER:-0}
@@ -528,9 +550,9 @@ if grep -q FORCE_UNSAFE_TYPES .cache/xnu-work/bsd/conf/Makefile.template; then
   VM_UNIX_TYPES=-DVM_UNSAFE_TYPES
 fi
 EXTRA_MAKE_ARGS+=("vm_unix.o_CFLAGS_ADD=$VM_UNIX_TYPES -DXNU_OWNER_CACHE_CARRIER=$OWNER_CACHE_CARRIER -DXNU_OWNER_CACHE_CARRIER_WRONG_UUID=$OWNER_CACHE_CARRIER_WRONG_UUID")
-OWNER_CARRIER_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.owner-cache-carrier-mode
+OWNER_CARRIER_STAMP="$ROOT/$XNU_OBJ_DIR"/.owner-cache-carrier-mode
 if [ "$(cat "$OWNER_CARRIER_STAMP" 2>/dev/null || echo 0:0)" != "$OWNER_CACHE_CARRIER:$OWNER_CACHE_CARRIER_WRONG_UUID" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/bsd/DEVELOPMENT/vm_unix.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/bsd/$XNU_CONFIG_LEVEL/vm_unix.o"
   printf '%s\n' "$OWNER_CACHE_CARRIER:$OWNER_CACHE_CARRIER_WRONG_UUID" > "$OWNER_CARRIER_STAMP"
 fi
 DT_PANIC_REGION=${XNU_DT_PANIC_REGION:-0}
@@ -539,9 +561,9 @@ if [ "$DT_PANIC_REGION" != 0 ] && [ "$DT_PANIC_REGION" != 1 ]; then
   exit 1
 fi
 EXTRA_MAKE_ARGS+=("pe_init.o_CFLAGS_ADD=-DXNU_DT_PANIC_REGION=$DT_PANIC_REGION")
-DT_PANIC_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.dt-panic-region-mode
+DT_PANIC_STAMP="$ROOT/$XNU_OBJ_DIR"/.dt-panic-region-mode
 if [ "$(cat "$DT_PANIC_STAMP" 2>/dev/null || echo 0)" != "$DT_PANIC_REGION" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/pexpert/DEVELOPMENT/pe_init.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/pexpert/$XNU_CONFIG_LEVEL/pe_init.o"
   printf '%s\n' "$DT_PANIC_REGION" > "$DT_PANIC_STAMP"
 fi
 ZONE_PGZ_PROBE=${XNU_ZONE_PGZ_ALIGNMENT_PROBE:-0}
@@ -550,9 +572,9 @@ if [ "$ZONE_PGZ_PROBE" != 0 ] && [ "$ZONE_PGZ_PROBE" != 1 ]; then
   exit 1
 fi
 EXTRA_MAKE_ARGS+=("zalloc.o_CFLAGS_ADD=-DXNU_ZONE_PGZ_ALIGNMENT_PROBE=$ZONE_PGZ_PROBE")
-ZONE_PGZ_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.zone-pgz-probe-mode
+ZONE_PGZ_STAMP="$ROOT/$XNU_OBJ_DIR"/.zone-pgz-probe-mode
 if [ "$(cat "$ZONE_PGZ_STAMP" 2>/dev/null || echo 0)" != "$ZONE_PGZ_PROBE" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/osfmk/DEVELOPMENT/zalloc.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/osfmk/$XNU_CONFIG_LEVEL/zalloc.o"
   printf '%s\n' "$ZONE_PGZ_PROBE" > "$ZONE_PGZ_STAMP"
 fi
 NATIVE_ARCH_TIMER=${XNU_NATIVE_ARCH_TIMER:-${XNU_ARMCPU:-0}}
@@ -565,9 +587,9 @@ if [ "$NATIVE_ARCH_TIMER" = 1 ] && [ "${XNU_ARMCPU:-0}" != 1 ]; then
   exit 1
 fi
 EXTRA_MAKE_ARGS+=("start.o_SFLAGS_ADD=-DXNU_NATIVE_ARCH_TIMER=$NATIVE_ARCH_TIMER")
-NATIVE_TIMER_STAMP=$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/.native-arch-timer-mode
+NATIVE_TIMER_STAMP="$ROOT/$XNU_OBJ_DIR"/.native-arch-timer-mode
 if [ "$(cat "$NATIVE_TIMER_STAMP" 2>/dev/null || echo 0)" != "$NATIVE_ARCH_TIMER" ]; then
-  rm -f "$ROOT/build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/osfmk/DEVELOPMENT/start.o"
+  rm -f "$ROOT/$XNU_OBJ_DIR/osfmk/$XNU_CONFIG_LEVEL/start.o"
   printf '%s\n' "$NATIVE_ARCH_TIMER" > "$NATIVE_TIMER_STAMP"
 fi
 NATIVE_PAN=${XNU_NATIVE_PAN:-0}
@@ -790,11 +812,14 @@ python3 - "${XNU_NATIVE_AES:-0}" "${XNU_NATIVE_AES_ARCHIVE:-$ROOT/build/software
   "$NATIVE_VIRTIO_CONSOLE" "$ROOT/build/virtio-mmio-console/libVirtioMmioConsole.a" \
   "$NATIVE_OFFLINE_GPU" "$ROOT/build/native-offline-gpu/libNativeOfflineGPU.late.a" \
   "$SHENG_PMGR" "$ROOT/build/sheng-platform-power/libShengPlatformPower.a" \
-  "${XNU_NATIVE_ADRENO:-0}" "$ROOT/build/adreno740/libAdreno740.a" <<'PY'
+  "${XNU_NATIVE_ADRENO:-0}" "$ROOT/build/adreno740/libAdreno740.a" \
+  "$XNU_OBJ_DIR" "$XNU_CONFIG_LEVEL" "$XNU_CONFIG_LEVEL_LC" <<'PY'
 import hashlib
 from pathlib import Path
 import sys
-directory = Path('build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837')
+directory = Path(sys.argv[-3])
+level = sys.argv[-2]
+level_lc = sys.argv[-1]
 stamp = directory / '.native-aes-link-input'
 
 
@@ -806,19 +831,21 @@ def state(mode, archive):
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else 'missing'
 
 
-identity = '|'.join(mode + ':' + state(mode, archive) for mode, archive in zip(sys.argv[1::2], sys.argv[2::2]))
+# The level selectors are the last three arguments; the mode/archive pairs lead.
+identity = level + '|' + '|'.join(mode + ':' + state(mode, archive)
+                                  for mode, archive in zip(sys.argv[1:-3:2], sys.argv[2:-3:2]))
 if not stamp.exists() or stamp.read_text() != identity:
     # Make does not track selection of an older alternative external archive.
     # Rebuild the conditional personality and relink when this input changes.
-    for relative in ('mach.development.bcm2837.unstripped',
-                     'iokit/DEVELOPMENT/KernelConfigTables.cpo'):
+    for relative in ('mach.' + level_lc + '.bcm2837.unstripped',
+                     'iokit/' + level + '/KernelConfigTables.cpo'):
         (directory / relative).unlink(missing_ok=True)
     directory.mkdir(parents=True, exist_ok=True)
     stamp.write_text(identity)
 PY
 EXTRA_CFLAGS="$EXTRA_CFLAGS -DXNU_BOOT_PROGRESS=$BOOT_PROGRESS"
 make -C .cache/xnu-work "${XNU_BUILD_TARGET:-build}" SDKROOT="${XNU_SDKROOT:-iphoneos}" ARCH_CONFIGS=ARM64 \
-  MACHINE_CONFIGS=BCM2837 KERNEL_CONFIGS=DEVELOPMENT \
+  MACHINE_CONFIGS=BCM2837 KERNEL_CONFIGS=$XNU_CONFIG_LEVEL \
   ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG="$XNU_ARCH_STRING" LARGE_MEMORY_DEFINE=-UARM_LARGE_MEMORY \
   ARM64_LINK_ADDR=0xfffffff007004000 ARM64_PLKSEG_ADDR=0xfffffff004004000 \
   DEPLOYMENT_TARGET_FLAGS="-miphoneos-version-min=$IOS_VERSION -DXNU_TARGET_OS_IOS" \
@@ -829,5 +856,5 @@ make -C .cache/xnu-work "${XNU_BUILD_TARGET:-build}" SDKROOT="${XNU_SDKROOT:-iph
   OBJROOT="$ROOT/build/xnu/ios-obj" SYMROOT="$ROOT/build/xnu/ios-sym" DSTROOT="$ROOT/build/xnu/ios-dst"
 if [ "${XNU_SOURCE_CORECRYPTO14:-0}" = 1 ] && [ "$CRYPTO_BOOTSTRAP_MODE" = source ]; then
   python3 scripts/seal-source-crypto-kernel.py \
-    build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped
+    "$XNU_OBJ_DIR/mach.$XNU_CONFIG_LEVEL_LC.bcm2837.unstripped"
 fi

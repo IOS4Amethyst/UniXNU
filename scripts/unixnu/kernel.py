@@ -52,6 +52,10 @@ def version_env(modules, ctx=None):
             env['UNIXNU_XNU_TAG'] = 'xnu-' + profile['xnu_version']
         if profile.get('ios_version'):
             env['UNIXNU_IOS_VERSION'] = profile['ios_version']
+        # The kernel configuration level. Defaults to DEVELOPMENT, the bring-up level, so an existing
+        # board keeps its object tree and its kernel byte-for-byte. A board selects RELEASE explicitly.
+        level = ctx.board.get('kernel', {}).get('config_level', 'DEVELOPMENT')
+        env['UNIXNU_XNU_CONFIG_LEVEL'] = level
         # The root images of the OS: volume UUIDs and image digests the kernel and the storage builder check.
         root = ctx.board.get('root', {})
         for key, variable in (('os_volume_uuid', 'XNU_OWNER_ROOT_VOLUME_UUID'),
@@ -189,7 +193,8 @@ def build(ctx, modules):
         generated.mkdir(parents=True, exist_ok=True)
         env['UNIXNU_GENERATED_DIR'] = str(generated)
     env['JOBS'] = str(ctx.jobs)
-    record = ctx.tree / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/osfmk/DEVELOPMENT/startup.o.json'
+    level = env['UNIXNU_XNU_CONFIG_LEVEL']
+    record = ctx.tree / f'build/xnu/ios-obj/{level}_ARM64_BCM2837/osfmk/{level}/startup.o.json'
     if not record.is_file():
         # The archive builders and the boot progress layer read compile records of the XNU build, which only an earlier
         # pass leaves behind. A first build from scratch therefore runs one pass without them; XNU_BOOTSTRAP makes it
