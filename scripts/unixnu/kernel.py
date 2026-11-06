@@ -23,6 +23,11 @@ def xnu_env(ctx):
         if isinstance(value, str):
             value = value.replace('{tree}', str(ctx.tree))
         env[key] = '1' if value is True else '0' if value is False else str(value)
+    # The kernel configuration level. Defaults to DEVELOPMENT, the bring-up level, so an existing
+    # board keeps its object tree, its stamps and a byte-identical kernel. A board selects RELEASE
+    # with [kernel] config_level; the kernel scripts and the archive builders both read this.
+    if ctx and ctx.schema_version == 2:
+        env['UNIXNU_XNU_CONFIG_LEVEL'] = ctx.board.get('kernel', {}).get('config_level', 'DEVELOPMENT')
     return env
 
 
@@ -52,10 +57,6 @@ def version_env(modules, ctx=None):
             env['UNIXNU_XNU_TAG'] = 'xnu-' + profile['xnu_version']
         if profile.get('ios_version'):
             env['UNIXNU_IOS_VERSION'] = profile['ios_version']
-        # The kernel configuration level. Defaults to DEVELOPMENT, the bring-up level, so an existing
-        # board keeps its object tree and its kernel byte-for-byte. A board selects RELEASE explicitly.
-        level = ctx.board.get('kernel', {}).get('config_level', 'DEVELOPMENT')
-        env['UNIXNU_XNU_CONFIG_LEVEL'] = level
         # The root images of the OS: volume UUIDs and image digests the kernel and the storage builder check.
         root = ctx.board.get('root', {})
         for key, variable in (('os_volume_uuid', 'XNU_OWNER_ROOT_VOLUME_UUID'),
