@@ -23,7 +23,7 @@ def macho(data):
         data = data[:8] + bytes(4) + data[12:]
     return ordinary_macho(data)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kernel_target import ARCH, IOS_VERSION, TRIPLE
+from kernel_target import ARCH, CONFIG_LEVEL, IOS_VERSION, OBJECT_TREE, TRIPLE
 
 
 def run(cmd, **kw):
@@ -49,7 +49,7 @@ plan = json.loads(plan_path.read_text())
 if plan['operational_overrides'] or plan['instance_bytes'] != 136 or plan['virtual_entries'] != 168:
     sys.exit('The audited original base is not the expected 136-byte, 168-entry class without operational overrides')
 
-record = json.loads((ROOT / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/iokit/DEVELOPMENT/IOPlatformExpert.cpo.json').read_text().strip().rstrip(','))
+record = json.loads((ROOT / OBJECT_TREE / 'iokit' / CONFIG_LEVEL / 'IOPlatformExpert.cpo.json').read_text().strip().rstrip(','))
 source = ROOT / 'drivers/Adreno740/NativeAdrenoAccelerator.cpp'
 obj = OUT / 'NativeAdrenoAccelerator.o'
 cmd, i, args = [], 0, record['arguments']

@@ -94,15 +94,16 @@ def main():
     hid = (args.hid_source or tree / 'refer/IOHIDFamily').resolve()
     storage_helper.pinned_source(hid, pins['IOHIDFamily']['commit'])
     storage_helper.pinned_source(storage, pins['IOStorageFamily']['commit'])
-    recipe = tree / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/iokit/DEVELOPMENT/IOPlatformExpert.cpo.json'
+    obj = tree / target.OBJECT_TREE
+    recipe = obj / 'iokit' / target.CONFIG_LEVEL / 'IOPlatformExpert.cpo.json'
     record = json.loads(recipe.read_text().strip().rstrip(','))
-    c_recipe = tree / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/osfmk/DEVELOPMENT/startup.o.json'
+    c_recipe = obj / 'osfmk' / target.CONFIG_LEVEL / 'startup.o.json'
     c_record = json.loads(c_recipe.read_text().strip().rstrip(','))
     # Audit the existing object too, before compiling with a possibly stale recipe.
     kernel_object = Path(record['directory']) / 'IOPlatformExpert.cpo'
     target.check_object(kernel_object.read_bytes(), 'Kernel compilation recipe')
     target.check_object((Path(c_record['directory']) / 'startup.o').read_bytes(), 'Kernel C compilation recipe')
-    kernel = tree / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped'
+    kernel = tree / target.KERNEL_IMAGE
     out = tree / 'build/sheng-source-drivers'
     out.mkdir(parents=True, exist_ok=True)
     manifest = out / 'report.json'

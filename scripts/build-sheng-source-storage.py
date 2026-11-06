@@ -177,11 +177,12 @@ IOBlockStorageDevice::MetaClass::MetaClass()
 OSDefineAbstractStructors(IOBlockStorageDevice, IOService)
 OSDefineOperatorMethods(IOBlockStorageDevice)
 '''))
-    obj = tree / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837'
-    cpp = json.loads((obj / 'iokit/DEVELOPMENT/IOPlatformExpert.cpo.json').read_text().strip().rstrip(','))
-    c = json.loads((obj / 'osfmk/DEVELOPMENT/startup.o.json').read_text().strip().rstrip(','))
+    obj = tree / target.OBJECT_TREE
+    level = target.CONFIG_LEVEL
+    cpp = json.loads((obj / 'iokit' / level / 'IOPlatformExpert.cpo.json').read_text().strip().rstrip(','))
+    c = json.loads((obj / 'osfmk' / level / 'startup.o.json').read_text().strip().rstrip(','))
     # BSD sources (sys/proc.h, the system calls) take kern_exec's flags.
-    bsd = json.loads((obj / 'bsd/DEVELOPMENT/kern_exec.o.json').read_text().strip().rstrip(','))
+    bsd = json.loads((obj / 'bsd' / level / 'kern_exec.o.json').read_text().strip().rstrip(','))
     bsd_sources = {'BootWatchdogPolicy.c', 'BootDiagExport.c', 'WifiFirmware.c'}
     includes = ['-I', str(out / 'headers/include'), '-I', str(ROOT / 'kits/VerifiedRoot/include'),
                 '-I', str(ROOT / 'drivers/VirtioMmioBlock'), '-I', str(tree / '.cache/xnu-work/osfmk')]
